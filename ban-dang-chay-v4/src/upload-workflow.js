@@ -12,6 +12,7 @@ import {
   unzipDocuments,
 } from './readers.js';
 import { sourceType, extractFields } from './extraction.js';
+import { extractBillOfLadingFields } from './bill-of-lading.js';
 
 export function queueFiles(files) {
   if (state.scanning) {
@@ -111,7 +112,11 @@ async function expandSpreadsheet(item) {
 }
 
 async function readQueueItem(item) {
-  let text = item.kind === 'sheet' ? item.sheetText : await readDocument(item.file, item.kind);
+  const pdfPages = [];
+  let text =
+    item.kind === 'sheet'
+      ? item.sheetText
+      : await readDocument(item.file, item.kind, { onPdfPage: (items) => pdfPages.push(items) });
   item.raw = text;
   item.type = sourceType(item.kind === 'sheet' ? item.sheetName : item.file.name, text);
   if (!text.trim()) throw Error('Không đọc được nội dung; kiểm tra chất lượng tệp hoặc nhập tay.');
@@ -119,12 +124,18 @@ async function readQueueItem(item) {
     item.status = 'Bỏ qua';
     item.fields = {};
   } else {
-    item.fields = extractFields(item.type, text, item.sheetRows);
+    let positionedFields = {};
+    if (item.type === 'bl') {
+      for (const page of pdfPages) {
+        positionedFields = { ...extractBillOfLadingFields(page), ...positionedFields };
+      }
+    }
+    item.fields = { ...extractFields(item.type, text, item.sheetRows), ...positionedFields };
     if (item.kind === 'pdf' && Object.keys(item.fields).length < 3) {
       try {
         $('progressText').textContent = `Đang OCR bổ sung ${item.name}`;
         const ocrText = await readDocument(item.file, 'pdf', { forceOcr: true }),
-          expanded = extractFields(item.type, text + '\n' + ocrText);
+          expanded = { ...extractFields(item.type, text + '\n' + ocrText), ...positionedFields };
         if (Object.keys(expanded).length > Object.keys(item.fields).length) {
           text += '\n' + ocrText;
           item.raw = text;

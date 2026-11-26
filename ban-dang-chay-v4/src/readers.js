@@ -14,12 +14,13 @@ async function ocr(source){
  const worker=await window.Tesseract.createWorker('eng+vie');
  try{return (await worker.recognize(source)).data.text||''}finally{await worker.terminate()}
 }
-async function pdfText(file,forceOcr=false){
+async function pdfText(file,{forceOcr=false,onPdfPage}={}){
  const pdf=await getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
  let text='',worker;
  try{
   for(let n=1;n<=pdf.numPages;n++){
    const page=await pdf.getPage(n),content=await page.getTextContent();let pageText='',lastY=null;
+   if(onPdfPage)onPdfPage(content.items);
    for(const item of content.items){const y=item.transform?.[5];if(lastY!==null&&Math.abs(y-lastY)>2)pageText+='\n';pageText+=(item.str||'')+' ';lastY=y}
    if(forceOcr||pageText.replace(/\s/g,'').length<40){
     if(!window.Tesseract)throw Error(`Trang ${n}: chưa tải được bộ OCR. Kiểm tra internet và thử lại.`);
@@ -68,7 +69,7 @@ export async function readSpreadsheetSheets(file){
 }
 export async function readDocument(file,ext=extension(file.name),options={}){
  if(file.size>60*1024*1024)throw Error('Tệp vượt 60 MB; hãy chia nhỏ trước khi quét.');
- if(ext==='pdf')return pdfText(file,options.forceOcr);
+ if(ext==='pdf')return pdfText(file,options);
  if(['png','jpg','jpeg','webp','bmp','tif','tiff'].includes(ext))return ocr(file);
  if(ext==='docx'){const out=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});return out.value}
  if(ext==='doc')return legacyDocText(await file.arrayBuffer());

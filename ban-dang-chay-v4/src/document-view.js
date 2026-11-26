@@ -1,7 +1,7 @@
 import { $, esc } from './dom.js';
 import { fields, groups, required, types } from './document-fields.js';
 import { norm } from './field-values.js';
-import { packingGrossForInvoice, state, value } from './session.js';
+import { packingGrossForInvoice, packingUnitForInvoice, state, value } from './session.js';
 
 export function renderStats() {
   $('statDocs').textContent = new Set(
@@ -76,7 +76,7 @@ export function renderQueue() {
 export function renderForm(onEdit) {
   const tabs = $('formTabs');
   tabs.innerHTML = groups
-    .filter((type) => type !== 'co')
+    .filter((type) => type !== 'co' && type !== 'customs')
     .map(
       (t) =>
         `<button type="button" role="tab" data-type="${t}" aria-selected="${state.active === t}" aria-controls="formPanel">${esc(types[t])}</button>`,
@@ -96,7 +96,7 @@ export function renderForm(onEdit) {
       input.addEventListener('input', () => {
         state.form[input.dataset.field] = input.value;
         state.manual.add(input.dataset.field);
-        if (state.active === 'invoice') renderInvoiceGross();
+        if (state.active === 'invoice') renderSupplementalInvoiceFields();
         if (state.queue.some((f) => f.status === 'Đã nhận diện')) onEdit();
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';
       }),
@@ -105,15 +105,18 @@ export function renderForm(onEdit) {
   $('dataOrigin').textContent = sources.length
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
     : 'Chưa trích được trường nhóm này';
-  if (state.active === 'invoice') renderInvoiceGross();
+  if (state.active === 'invoice') renderSupplementalInvoiceFields();
 }
 
-function renderInvoiceGross() {
-  const fallback = packingGrossForInvoice();
-  const input = $('field-invoiceGross');
-  input.value = state.manual.has('invoiceGross')
-    ? state.form.invoiceGross
-    : value('invoiceGross') || fallback;
-  const label = $('formPanel').querySelector('label[for="field-invoiceGross"]');
-  label.textContent = fallback ? 'Gross Weight (kg) · Packing List' : 'Gross Weight (kg)';
+function renderSupplementalInvoiceFields() {
+  const packingValues = [
+    ['invoiceGross', 'Gross Weight (kg)', packingGrossForInvoice()],
+    ['invoiceUnit', 'Đơn vị', packingUnitForInvoice()],
+  ];
+  for (const [field, caption, packingValue] of packingValues) {
+    const input = $('field-' + field);
+    input.value = state.manual.has(field) ? state.form[field] : packingValue || value(field);
+    const label = $('formPanel').querySelector(`label[for="field-${field}"]`);
+    label.textContent = packingValue ? caption + ' · Packing List' : caption;
+  }
 }

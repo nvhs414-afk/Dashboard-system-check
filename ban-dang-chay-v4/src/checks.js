@@ -2,7 +2,7 @@ import { groups, required, types } from './document-fields.js';
 import { eq, norm } from './field-values.js';
 import { makeRadar } from './booking-radar.js';
 
-export function evaluateShipment(queue, value, packingGross = '') {
+export function evaluateShipment(queue, value, { packingGross = '', packingUnit = '' } = {}) {
   let checks = [];
   const add = (title, status, detail) => checks.push({ title, status, detail });
   const has = (t) => queue.some((f) => f.type === t && f.status === 'Đã nhận diện');
@@ -165,7 +165,7 @@ export function evaluateShipment(queue, value, packingGross = '') {
     nguoiNhapKhau: value('importer'),
     tenHang: value('description'),
     maHS: value('hs'),
-    soLuong: [value('invoiceQty'), value('invoiceUnit')].filter(Boolean).join(' '),
+    soLuong: [value('invoiceQty'), packingUnit || value('invoiceUnit')].filter(Boolean).join(' '),
     netWeightKg: value('invoiceNet'),
     grossWeightKg: value('invoiceGross') || packingGross,
     triGiaUSD: value('invoiceValue'),

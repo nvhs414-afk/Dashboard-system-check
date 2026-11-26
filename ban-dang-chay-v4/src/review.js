@@ -1,5 +1,5 @@
 import { $, toast } from './dom.js';
-import { packingGrossForInvoice, state, value } from './session.js';
+import { packingGrossForInvoice, packingUnitForInvoice, state, value } from './session.js';
 import { renderStats } from './document-view.js';
 import { renderResults, resetDraft, renderComparisonTable } from './results-view.js';
 import { evaluateShipment } from './checks.js';
@@ -25,11 +25,10 @@ export function runChecks(announce = false) {
     $('resultEmpty').textContent = 'Chưa có dữ liệu để đối chiếu. Hãy tải và quét hồ sơ trước.';
     return;
   }
-  const { checks, draft, score, level, radar } = evaluateShipment(
-    state.queue,
-    value,
-    packingGrossForInvoice(),
-  );
+  const { checks, draft, score, level, radar } = evaluateShipment(state.queue, value, {
+    packingGross: packingGrossForInvoice(),
+    packingUnit: packingUnitForInvoice(),
+  });
   state.checks = checks;
   state.draft = draft;
   state.showAll = false;

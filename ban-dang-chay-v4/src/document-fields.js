@@ -2,8 +2,8 @@ export const fields = {
   invoice: [
     ['invoiceNo', 'Số Invoice'],
     ['invoiceDate', 'Ngày Invoice'],
-    ['exporter', 'Người xuất khẩu'],
-    ['importer', 'Người nhập khẩu'],
+    ['exporter', 'Shipper'],
+    ['importer', 'Consignee'],
     ['invoiceQty', 'Số lượng'],
     ['invoiceUnit', 'Đơn vị'],
     ['invoiceGross', 'Gross Weight (kg)'],
@@ -12,8 +12,8 @@ export const fields = {
   ],
   packing: [
     ['plInvoiceNo', 'Số Invoice trên PL'],
-    ['plExporter', 'Người xuất khẩu trên PL'],
-    ['plImporter', 'Người nhập khẩu trên PL'],
+    ['plExporter', 'Shipper'],
+    ['plImporter', 'Consignee'],
     ['plQty', 'Số lượng'],
     ['plUnit', 'Đơn vị'],
     ['plGross', 'Gross Weight (kg)'],
@@ -53,9 +53,8 @@ export const fields = {
     ['finalWeight', 'Final Weight (kg)'],
   ],
   bl: [
-    ['blInvoiceNo', 'Số Invoice trên B/L'],
-    ['blExporter', 'Người gửi hàng'],
-    ['blImporter', 'Người nhận hàng'],
+    ['blExporter', 'Shipper'],
+    ['blImporter', 'Consignee'],
     ['blPol', 'POL trên B/L'],
     ['blPod', 'POD trên B/L'],
     ['blContainer', 'Container trên B/L'],
