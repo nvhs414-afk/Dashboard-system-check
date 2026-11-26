@@ -1,4 +1,4 @@
-import { norm, num } from './field-values.js';
+import { norm, num, weightText } from './field-values.js';
 
 const quantityUnits = /^(?:pcs?|pieces?|sets?|units?|ctns?|cartons?|kgs?)$/i;
 const months = 'jan feb mar apr may jun jul aug sep oct nov dec'.split(' ');
@@ -70,7 +70,7 @@ function tableValues(rows, headerIndex) {
     invoiceUnit: knownUnit ? selectedUnit.toUpperCase() : '',
     invoiceValue: /\busd\b/.test(currency) ? numberAt(amount) : '',
     invoiceNet: /\b(?:kg|kgs|kgm)\b/.test(norm(header[net])) ? numberAt(net) : '',
-    invoiceGross: /\b(?:kg|kgs|kgm)\b/.test(norm(header[gross])) ? numberAt(gross) : '',
+    invoiceGross: /\b(?:kg|kgs|kgm)\b/.test(norm(header[gross])) ? weightText(total[gross]) : '',
   };
 }
 

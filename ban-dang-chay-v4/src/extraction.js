@@ -1,23 +1,31 @@
 import { extractInvoiceSheet } from './invoice-sheet.js';
 import { extractPackingSheet } from './packing-sheet.js';
 import { extractContainerSeal } from './bill-of-lading.js';
+import { bookingNoticeFields } from './booking-notice.js';
 
 const plain=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+
+export function isOutOfScopeFilename(name) {
+ const filename=String(name).split('/').pop();
+ const normalized=plain(filename);
+ return /to\s*khai|customs declaration|giam sat|vnaccs|certificate of origin|chung nhan xuat xu/.test(normalized) ||
+  /^(?:co|c[\s_-]+o)\.[a-z0-9]+$/i.test(filename);
+}
 
 export function sourceType(name,text=''){
  const file=plain(String(name).split('/').pop()),body=plain(text),head=plain(text.slice(0,4000));
  // A transport document often mentions a Booking number. Its title or filename wins.
- const names=[['bl',/(?:^| )(?:bill(?: of lading)?|b l|bl|waybill|hbl|mbl|van don)(?: |$)/],['co',/(?:^| )(?:c o|co|certificate of origin|chung nhan xuat xu)(?: |$)/],['customs',/to khai|declaration|giam sat|vnaccs/],['packing',/packing|pack list|p l|phieu dong goi/],['invoice',/invoice|hoa don|(?:^| )ci(?: |$)/],['booking',/booking|book confirmation|xac nhan dat cho/]];
+ const names=[['bl',/(?:^| )(?:bill(?: of lading)?|b l|bl|waybill|hbl|mbl|van don)(?: |$)/],['packing',/packing|pack list|p l|phieu dong goi/],['invoice',/invoice|hoa don|(?:^| )ci(?: |$)/],['booking',/booking|book confirmation|xac nhan dat cho/]];
+ if(isOutOfScopeFilename(name))return 'other';
  if(/(?:^| )(?:dinh muc|dm\d*|material consumption)(?: |$)/.test(file))return 'other';
  for(const [type,re] of names)if(re.test(file))return type;
+ if(text.slice(0,4000).split(/\r?\n/).some(line=>/^(?:to khai (?:hai quan|hang hoa)|customs declaration|danh sach giam sat|certificate of origin|chung nhan xuat xu)\b/.test(plain(line))))return 'other';
  if(text.slice(0,4000).split(/\r?\n/).some(line=>/^booking notice$/i.test(line.trim())))return 'booking';
- const titles=[['bl',/bill of lading|sea waybill|van don duong bien/],['co',/certificate of origin|chung nhan xuat xu/],['customs',/to khai hai quan|customs declaration|danh sach giam sat/],['packing',/packing list|packing details|phieu dong goi/],['invoice',/commercial invoice|hoa don thuong mai/],['booking',/booking confirmation|xac nhan dat cho/]];
+ const titles=[['bl',/bill of lading|sea waybill|van don duong bien/],['packing',/packing list|packing details|phieu dong goi/],['invoice',/commercial invoice|hoa don thuong mai/],['booking',/booking confirmation|xac nhan dat cho/]];
  for(const [type,re] of titles)if(re.test(head))return type;
  if(text.slice(0,4000).split(/\r?\n/).some(line=>/^invoice$/i.test(line.trim())))return 'invoice';
  if(/dinh muc|material consumption|hao hut nguyen lieu/.test(head))return 'other';
- if(/so to khai|declaration number|phan luong/.test(body))return 'customs';
  if(/bill of lading|b l no|bl number|shipped on board/.test(body))return 'bl';
- if(/certificate of origin|origin criterion|tieu chi xuat xu/.test(body))return 'co';
  if(/packing list|packing details/.test(body))return 'packing';
  if(/commercial invoice|invoice no|invoice number/.test(body))return 'invoice';
  if(/booking no|booking number/.test(body))return 'booking';
@@ -60,15 +68,14 @@ function extract(type,text,rows){
  if(type==='packing'&&rows){
   for(const [key,value] of Object.entries(extractPackingSheet(rows)))if(value)o[key]=value;
  }
- if(type==='customs')o={decNo:ref(['số\\s*tờ\\s*khai','so\\s*to\\s*khai','declaration(?:\\s*(?:no\\.?|number))?']),decInvoiceNo:common.invoiceNo,decExporter:common.exporter,decImporter:common.importer,decHs:common.hs,decQty:common.invoiceQty,decUnit:common.invoiceUnit,decNet:common.invoiceNet,decGross:common.invoiceGross,decValue:common.invoiceValue,decChannel:field(['phân\\s*luồng','phan\\s*luong','channel'],s=>/^(?:xanh|vàng|vang|đỏ|do|green|yellow|red)\b/i.test(s)),decContainer:ref(['container(?:\\s*(?:no\\.?|number))?']),decSeal:field(['seal(?:\\s*(?:no\\.?|number))?'],s=>/^[A-Za-z0-9./_-]{2,70}$/i.test(s))};
  if(type==='booking')o={bookingNo:ref(['booking\\s*(?:no\\.?|number|#)','số\\s*booking','so\\s*booking']),etd:field(['etd','estimated\\s*time\\s*of\\s*departure'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),etaFirst:field(['eta(?:\\s*(?:first\\s*leg|yangshan))?'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),etdConnect:field(['connection\\s*etd','transshipment\\s*etd','etd\\s*connecting'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),pickupDate:field(['empty\\s*pick.?up','ngày\\s*nhận\\s*container\\s*rỗng'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),freeDays:weight(['free\\s*time','số\\s*ngày\\s*miễn\\s*phí']),cyCutoff:field(['cy\\s*cut.?off']),icdCutoff:field(['icd\\s*cut.?off']),siCutoff:field(['si\\s*cut.?off']),bookingPol:field(['port\\s*of\\s*loading','cảng\\s*xếp\\s*hàng','pol'],party),bookingPod:field(['port\\s*of\\s*discharge','cảng\\s*dỡ\\s*hàng','pod'],party),bookingContainer:ref(['container(?:\\s*(?:no\\.?|number))?']),bookingSeal:field(['seal(?:\\s*(?:no\\.?|number))?'],s=>/^[A-Za-z0-9./_-]{2,70}$/i.test(s)),plannedWeight:weight(['planned\\s*weight','estimated\\s*weight']),finalWeight:weight(['final\\s*weight','verified\\s*gross\\s*mass','vgm'])};
  if(type==='booking'){
   o.bookingShipper=field(['shipper','exporter'],party);
   o.bookingConsignee=field(['consignee','cnee'],party)||
     clean(text.match(/\bCNEE\s*[:：]\s*([^\r\n]+?)(?=\s+(?:WEIGHT|VOLUME)\b|\s*$)/im)?.[1]);
+  for(const [key,value] of Object.entries(bookingNoticeFields(text)))if(value)o[key]=value;
  }
  if(type==='bl')o={blExporter:common.exporter,blImporter:common.importer,blPol:field(['port\\s*of\\s*loading','pol'],party),blPod:field(['port\\s*of\\s*discharge','pod'],party),blContainer:ref(['container(?:\\s*(?:no\\.?|number))?']),blSeal:field(['seal(?:\\s*(?:no\\.?|number))?'],s=>/^[A-Za-z0-9./_-]{2,70}$/i.test(s)),blGross:common.invoiceGross};
- if(type==='co')o={coInvoiceNo:common.invoiceNo,coExporter:common.exporter,coImporter:common.importer,coHs:common.hs,coOrigin:field(['origin\\s*criterion','tiêu\\s*chí\\s*xuất\\s*xứ','tieu\\s*chi\\s*xuat\\s*xu'],party)};
  if(type==='bl')Object.assign(o,extractContainerSeal(text));
  return Object.fromEntries(Object.entries(o).filter(([,v])=>v));
 }

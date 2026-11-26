@@ -1,4 +1,4 @@
-import { norm, num } from './field-values.js';
+import { norm, num, weightText } from './field-values.js';
 import { labeledValue } from './invoice-sheet.js';
 
 const grossHeading = /^(?:gross weight|trong luong ca bi)(?: kg| kgs| kgm)?$/;
@@ -17,10 +17,10 @@ function totalWeight(total, header, column) {
   if (column < 0) return '';
   const cell = String(total[column] ?? '').trim();
   // A merged weight heading can cover a unit cell followed by the numeric total.
-  if (/^(?:kg|kgs|kgm)$/i.test(cell)) return totalNumber(total[column + 1]);
+  if (/^(?:kg|kgs|kgm)$/i.test(cell)) return weightText(total[column + 1]);
   if (!/\b(?:kg|kgs|kgm)\b/.test(norm(header[column])) && !/\b(?:kg|kgs|kgm)\b/i.test(cell))
     return '';
-  return totalNumber(cell.replace(/^(?:kg|kgs|kgm)\s+/i, '').replace(/\s+(?:kg|kgs|kgm)$/i, ''));
+  return weightText(cell);
 }
 
 export function extractPackingSheet(rows) {

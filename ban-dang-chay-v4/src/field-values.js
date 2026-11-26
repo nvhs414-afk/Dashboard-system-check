@@ -10,6 +10,13 @@ export function num(s) {
     raw = /,\d{3}$/.test(raw) ? raw.replace(/,/g, '') : raw.replace(',', '.');
   return Number(raw);
 }
+export function weightText(value) {
+  const text = String(value ?? '')
+    .trim()
+    .replace(/^(?:kgm|kgs?)\s+/i, '')
+    .replace(/\s*(?:kgm|kgs?)$/i, '');
+  return /^\d[\d.,]*$/.test(text) && Number.isFinite(num(text)) ? text : '';
+}
 export function norm(s) {
   return String(s ?? '')
     .normalize('NFD')

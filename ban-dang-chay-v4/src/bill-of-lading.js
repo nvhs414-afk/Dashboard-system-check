@@ -1,4 +1,4 @@
-import { num } from './field-values.js';
+import { weightText } from './field-values.js';
 
 const portLabels = {
   blPol: /^(?:port of loading|pol)$/i,
@@ -87,8 +87,8 @@ function grossWeight(rows, index, column) {
       /(?:kgs?|kgm)\)?$/i.test(header.blocks[column].text) ||
       /(?:kgs?|kgm)$/i.test(weight.text) ||
       followingRows.some((row) => row.blocks.some(hasUnit));
-    const amount = num(weight.text);
-    if (kilograms && Number.isFinite(amount)) return String(amount);
+    const amount = weightText(weight.text);
+    if (kilograms && amount) return amount;
   }
   return '';
 }
@@ -115,8 +115,8 @@ function alignedKilograms(rows) {
           ({ end, text }) => Math.abs(end - unit.end) <= 6 && /^\d[\d.,]*$/.test(text),
         );
         if (!weight) continue;
-        const amount = num(weight.text);
-        if (Number.isFinite(amount)) totals.add(String(amount));
+        const amount = weightText(weight.text);
+        if (amount) totals.add(amount);
         break;
       }
     }

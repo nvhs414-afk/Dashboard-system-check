@@ -68,7 +68,7 @@ test('party boxes and cargo columns supply names, identifiers, and gross kilogra
     blImporter: 'DEMO CONSIGNEE LLC',
     blContainer: 'DEMU7654321',
     blSeal: 'DEMO-SEAL01',
-    blGross: '1234.5',
+    blGross: '1,234.500',
   });
 });
 
@@ -77,11 +77,14 @@ test('an aligned kilograms total beside Measurement survives a missing gross hea
   const unit = span('KGS', 480, 93, 15);
   assert.equal(
     extractBillOfLadingFields([span('Measurement', 510, 120), amount, unit]).blGross,
-    '1234.5',
+    '1,234.500',
   );
   assert.equal(
     extractBillOfLadingFields([span('Net Weight', 410, 120), amount, unit]).blGross,
     undefined,
   );
-  assert.equal(extractBillOfLadingFields([amount, unit, span('CBM', 560, 93)]).blGross, '1234.5');
+  assert.equal(
+    extractBillOfLadingFields([amount, unit, span('CBM', 560, 93)]).blGross,
+    '1,234.500',
+  );
 });

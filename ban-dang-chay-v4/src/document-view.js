@@ -1,6 +1,5 @@
 import { $, esc } from './dom.js';
 import { fields, groups, required, types } from './document-fields.js';
-import { norm } from './field-values.js';
 import { packingGrossForInvoice, packingUnitForInvoice, state, value } from './session.js';
 
 export function renderStats() {
@@ -48,7 +47,7 @@ export function renderQueue() {
           return `<tr><td class="doc-type"><strong>${esc(types[g.type])}</strong><small>${required.includes(g.type) ? 'Bắt buộc' : 'Bổ sung'}</small></td><td><span class="mini-status ${status === 'Cần xác minh' ? 'warning' : status !== 'Đã nhận diện' ? 'pending' : ''}">${status}</span>${reason ? `<small class="error-note">${esc(reason)}</small>` : ''}</td><td class="source-list">${fileCell}</td><td>${count}</td><td>${esc(preview || 'Chưa có trường')}</td></tr>`;
         })
         .join('')
-    : '<tr><td colspan="5" class="table-empty">Chưa có chứng từ chính được nhận diện. Tải CI, PL, Tờ khai, Booking, B/L hoặc C/O rồi bấm Quét hồ sơ.</td></tr>';
+    : '<tr><td colspan="5" class="table-empty">Chưa có chứng từ chính được nhận diện. Tải CI, PL, Booking hoặc B/L rồi bấm Quét hồ sơ.</td></tr>';
   const have = new Set(
     entries
       .filter((f) => f.status === 'Đã nhận diện' && groups.includes(f.type))
@@ -57,12 +56,12 @@ export function renderQueue() {
   const missing = required.filter((t) => !have.has(t));
   $('missingBox').classList.toggle('ok', !missing.length);
   $('missingBox').textContent = !entries.length
-    ? 'Chưa có hồ sơ nguồn. Bộ lõi gồm Invoice, Packing List, Tờ khai/DS giám sát và Booking.'
+    ? 'Chưa có hồ sơ nguồn. Bộ lõi gồm Invoice, Packing List và Booking.'
     : missing.length
       ? 'Hồ sơ lõi chưa nhận diện: ' +
         missing.map((t) => types[t]).join(', ') +
         '. Hãy bổ sung hoặc xác minh tệp lỗi.'
-      : 'Đã nhận diện đủ bốn loại hồ sơ lõi. Nhân viên vẫn cần kiểm tra nội dung.';
+      : 'Đã nhận diện đủ hồ sơ bắt buộc. Nhân viên vẫn cần kiểm tra nội dung.';
   $('scanBtn').disabled =
     state.scanning || !entries.some((f) => !['Đã nhận diện', 'Bỏ qua'].includes(f.status));
   const ignored = entries.filter((f) => f.status === 'Bỏ qua').length;
@@ -76,7 +75,6 @@ export function renderQueue() {
 export function renderForm(onEdit) {
   const tabs = $('formTabs');
   tabs.innerHTML = groups
-    .filter((type) => type !== 'co' && type !== 'customs')
     .map(
       (t) =>
         `<button type="button" role="tab" data-type="${t}" aria-selected="${state.active === t}" aria-controls="formPanel">${esc(types[t])}</button>`,
@@ -89,7 +87,7 @@ export function renderForm(onEdit) {
     }),
   );
   $('formPanel').innerHTML =
-    `<div class="field-grid">${fields[state.active].map(([key, label]) => `<div class="field"><label for="field-${key}">${esc(label)}</label>${key === 'decChannel' ? `<select id="field-${key}" data-field="${key}"><option value="">Chưa xác định</option>${['Xanh', 'Vàng', 'Đỏ'].map((v) => `<option value="${v}" ${norm(value(key)) === norm(v) ? 'selected' : ''}>${v}</option>`).join('')}</select>` : `<input id="field-${key}" data-field="${key}" value="${esc(value(key))}" autocomplete="off" placeholder="Chưa đọc được">`}</div>`).join('')}</div>`;
+    `<div class="field-grid">${fields[state.active].map(([key, label]) => `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${esc(value(key))}" autocomplete="off" placeholder="Chưa đọc được"></div>`).join('')}</div>`;
   $('formPanel')
     .querySelectorAll('[data-field]')
     .forEach((input) =>

@@ -11,7 +11,7 @@ import {
   readSpreadsheetSheets,
   unzipDocuments,
 } from './readers.js';
-import { sourceType, extractFields } from './extraction.js';
+import { sourceType, extractFields, isOutOfScopeFilename } from './extraction.js';
 import { extractBillOfLadingFields } from './bill-of-lading.js';
 
 export function queueFiles(files) {
@@ -198,21 +198,23 @@ export async function scan() {
     renderQueue();
     $('progressText').textContent = `Đang đọc ${item.name} (${done + 1}/${total})`;
     try {
-      if (item.kind === 'zip') {
+      if (item.kind !== 'zip' && isOutOfScopeFilename(item.file.name)) {
+        item.status = 'Bỏ qua';
+      } else if (item.kind === 'zip') {
         const children = await expandZip(item);
         total += children.length - 1;
         i--;
         continue;
-      }
-      if (['xlsx', 'xls', 'xlsm', 'csv'].includes(item.kind)) {
+      } else if (['xlsx', 'xls', 'xlsm', 'csv'].includes(item.kind)) {
         const children = await expandSpreadsheet(item);
         state.queue.splice(i, 1, ...children);
         total += children.length - 1;
         i--;
         continue;
+      } else {
+        await readQueueItem(item);
+        if (item.status === 'Đã nhận diện') syncExtractedForm();
       }
-      await readQueueItem(item);
-      if (item.status === 'Đã nhận diện') syncExtractedForm();
     } catch (e) {
       item.status = 'Cần xác minh';
       item.error = e.message || 'Không thể đọc tệp này.';

@@ -2,10 +2,10 @@ import JSZip from 'jszip';
 import mammoth from 'mammoth/mammoth.browser.js';
 import * as XLSX from 'xlsx';
 import CFB from 'cfb';
-import {getDocument,GlobalWorkerOptions} from 'pdfjs-dist/build/pdf.mjs';
-import 'pdfjs-dist/build/pdf.worker.min.mjs';
+import {getDocument,GlobalWorkerOptions} from 'pdfjs-dist/legacy/build/pdf.mjs';
+import 'pdfjs-dist/legacy/build/pdf.worker.min.mjs';
 
-GlobalWorkerOptions.workerSrc=new URL('./pdf.worker.min.mjs',import.meta.url).href;
+GlobalWorkerOptions.workerSrc=new URL('./pdf.worker.min.mjs?compat=1',import.meta.url).href;
 export const allowedExt=new Set(['pdf','png','jpg','jpeg','webp','bmp','tif','tiff','doc','docx','xls','xlsx','xlsm','csv','txt','rtf','odt','pptx','zip','json','xml','html','htm','md','eml','log']);
 export const extension=name=>name.toLowerCase().split('.').pop();
 

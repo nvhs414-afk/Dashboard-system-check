@@ -1,3 +1,5 @@
+import { num } from './field-values.js';
+
 export const state = {
   queue: [],
   seen: new Set(),
@@ -27,12 +29,11 @@ function matchingPackingLists() {
 
 export function packingGrossForInvoice() {
   if (value('invoiceGross') || state.manual.has('invoiceGross')) return '';
-  const totals = new Set(
-    matchingPackingLists()
-      .map((item) => item.fields.plGross)
-      .filter(Boolean),
-  );
-  return totals.size === 1 ? [...totals][0] : '';
+  const totals = matchingPackingLists()
+    .map((item) => item.fields.plGross)
+    .filter(Boolean);
+  const first = num(totals[0]);
+  return Number.isFinite(first) && totals.every((total) => num(total) === first) ? totals[0] : '';
 }
 
 export function packingUnitForInvoice() {
@@ -47,5 +48,3 @@ export function packingUnitForInvoice() {
   );
   return units.size === 1 && units.has('PCS/SET') ? 'PCS/SET' : '';
 }
-
-import { num } from './field-values.js';

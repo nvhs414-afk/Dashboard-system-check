@@ -20,21 +20,6 @@ export const fields = {
     ['plContainer', 'Container'],
     ['plSeal', 'Seal'],
   ],
-  customs: [
-    ['decNo', 'Số tờ khai'],
-    ['decInvoiceNo', 'Số Invoice trên tờ khai'],
-    ['decExporter', 'Người xuất khẩu trên tờ khai'],
-    ['decImporter', 'Người nhập khẩu trên tờ khai'],
-    ['decHs', 'Mã HS'],
-    ['decQty', 'Số lượng'],
-    ['decUnit', 'Đơn vị'],
-    ['decNet', 'Net Weight (kg)'],
-    ['decGross', 'Gross Weight (kg)'],
-    ['decValue', 'Trị giá (USD)'],
-    ['decChannel', 'Phân luồng'],
-    ['decContainer', 'Container'],
-    ['decSeal', 'Seal'],
-  ],
   booking: [
     ['bookingShipper', 'Shipper'],
     ['bookingConsignee', 'Consignee'],
@@ -63,23 +48,14 @@ export const fields = {
     ['blSeal', 'Seal trên B/L'],
     ['blGross', 'Gross Weight (kg)'],
   ],
-  co: [
-    ['coInvoiceNo', 'Số Invoice trên C/O'],
-    ['coExporter', 'Người xuất khẩu'],
-    ['coImporter', 'Người nhập khẩu'],
-    ['coHs', 'Mã HS'],
-    ['coOrigin', 'Tiêu chí xuất xứ'],
-  ],
 };
 export const types = {
   invoice: 'Commercial Invoice (CI)',
   packing: 'Packing List (PL)',
-  customs: 'Tờ khai / DS giám sát',
   booking: 'Booking',
   bl: 'B/L / Sea Waybill',
-  co: 'C/O',
   other: 'Chưa xác định',
   zip: 'Gói ZIP',
 };
-export const required = ['invoice', 'packing', 'customs', 'booking'];
-export const groups = ['invoice', 'packing', 'customs', 'booking', 'bl', 'co'];
+export const required = ['invoice', 'packing', 'booking'];
+export const groups = ['invoice', 'packing', 'booking', 'bl'];
