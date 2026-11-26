@@ -1,0 +1,22 @@
+{
+  "name": "ui-dcs-fcl-flow",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "cfb": "^1.2.2",
+    "esbuild": "^0.28.2",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.80.0",
+    "mammoth": "^1.13.0",
+    "pdfjs-dist": "^6.5.438",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5"
+  }
+}

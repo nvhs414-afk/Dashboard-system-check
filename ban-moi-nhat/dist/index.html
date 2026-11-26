@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <title>DCS (DOUBLE CHECK SYSTEM)</title>
+  <meta name="description" content="Quét và đối chiếu bộ chứng từ FCL/LCL trong trình duyệt.">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+<header class="topbar"><div class="wrap bar-inner">
+  <a class="brand" href="#overview" aria-label="DCS, về Tổng quan"><span class="brand-mark">DCS</span><span>DCS<small>DOUBLE CHECK SYSTEM</small></span></a>
+  <nav aria-label="Điều hướng chính"><a href="#overview">Tổng quan</a><a href="#input">Nhập dữ liệu</a><a href="#results">Kết quả</a><a href="#method">Phương pháp</a></nav>
+</div></header>
+<main>
+<section id="overview" class="overview section" aria-labelledby="overviewTitle"><div class="wrap">
+  <div class="hero-grid">
+    <div class="hero-copy"><p class="eyebrow">DCS / DOUBLE CHECK SYSTEM</p><h1 class="main-title" id="overviewTitle">Kiểm tra bộ chứng từ<br>FCL/LCL</h1>
+    <p class="lead">Tải hồ sơ một lần để kiểm tra số liệu trước khi khai hải quan.</p>
+    <div class="hero-actions"><a class="button primary" href="#input" data-icon="upload">Tải bộ chứng từ</a></div>
+    <p class="subtle">Bản mô phỏng phục vụ học tập và trình diễn.</p></div>
+    <aside class="hero-card" aria-label="Quy trình xử lý"><div class="card-kicker" data-icon="layers">Quy trình xử lý</div>
+      <div class="flow-step"><span>01</span><div><strong>Tải hồ sơ</strong><small>PDF, Word, Excel, ảnh hoặc ZIP.</small></div></div>
+      <div class="flow-step"><span>02</span><div><strong>Quét và đối chiếu</strong><small>Nhận diện chứng từ, điền trường và so sánh.</small></div></div>
+      <div class="flow-step"><span>03</span><div><strong>Xác nhận số liệu</strong><small>Xem nguồn, sửa ô và rà soát bản nháp C/O.</small></div></div>
+    </aside>
+  </div>
+  <div class="stat-grid">
+    <div class="stat"><span class="stat-label">Loại chứng từ</span><b id="statDocs">0</b><small>đã nhận diện</small></div>
+    <div class="stat"><span class="stat-label">Kiểm tra đã chạy</span><b id="statChecks">0</b><small>tiêu chí đối chiếu</small></div>
+    <div class="stat"><span class="stat-label">Cảnh báo</span><b id="statIssues">0</b><small>điểm cần xem lại</small></div>
+    <div class="stat"><span class="stat-label">Mức rủi ro</span><b id="statRisk">—</b><small>theo kết quả kiểm tra</small></div>
+  </div>
+  <div class="scope-line"><strong>Loại hình</strong><span>Sản xuất xuất khẩu (SXXK)</span><span>Gia công</span><span>Doanh nghiệp chế xuất (DNCX)</span><span>Kinh doanh</span></div>
+</div></section>
+
+<section id="input" class="input-section section dark" aria-labelledby="inputTitle"><div class="wrap">
+  <div class="section-head"><div><h2 class="main-title" id="inputTitle">Tải và nhận diện hồ sơ</h2><p>Chọn tệp rồi bấm <strong>Quét hồ sơ</strong> để đọc và đối chiếu.</p></div><span class="section-icon" data-icon="folder"></span></div>
+  <div class="input-layout"><div class="input-main">
+    <div class="upload-shell">
+      <div id="dropZone" class="drop-zone"><span class="drop-icon" data-icon="upload"></span><strong>Kéo thả bộ chứng từ vào đây</strong><span>PDF, Excel, Word, ảnh, ZIP và tệp văn bản</span>
+      <button type="button" id="chooseFiles" class="button light">Chọn tệp từ máy</button><input id="files" type="file" multiple aria-label="Chọn bộ chứng từ"></div>
+      <div class="upload-toolbar"><div class="toolbar-info"><span id="uploadSummary" role="status">Chưa có tệp.</span></div>
+      <div class="toolbar-buttons"><button id="scanBtn" type="button" class="button primary" disabled data-icon="scan">Quét hồ sơ</button><button id="clearBtn" type="button" class="button dark-outline" data-icon="trash">Xóa hồ sơ</button></div></div>
+      <div id="progressWrap" class="progress-wrap" hidden><div class="progress-track" role="progressbar" aria-label="Tiến độ quét" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progressBar"></span></div><small id="progressText" aria-live="polite"></small></div>
+      <details id="fileNotes" class="file-notes" hidden><summary>Tệp cần xem lại</summary><ul></ul></details>
+    </div>
+    <div class="panel doc-panel"><div class="panel-title"><h3>Hồ sơ đã nạp</h3><span class="panel-caption">Bắt buộc · CI, PL, Tờ khai, Booking</span></div>
+      <div class="table-scroll"><table class="docs-table"><thead><tr><th>Chứng từ</th><th>Trạng thái</th><th>Tệp nguồn</th><th>Trường đã đọc</th><th>Nội dung chính</th></tr></thead><tbody id="docsBody"></tbody></table></div>
+      <div id="missingBox" class="missing-box" aria-live="polite"></div>
+    </div>
+    <section id="extracted" class="extracted-section" aria-labelledby="extractedTitle">
+      <div class="form-head"><div><h2 class="main-title card-title" id="extractedTitle">Dữ liệu trích xuất</h2><p>Chọn chứng từ để xem nguồn và sửa từng ô.</p></div><span id="dataOrigin" class="origin-tag">Chưa có dữ liệu</span></div>
+      <div id="formTabs" class="tabs" role="tablist" aria-label="Loại chứng từ"></div><div id="formPanel" role="tabpanel" class="form-panel"></div>
+    </section>
+    <section id="comparison" class="panel comparison-panel" aria-labelledby="comparisonTitle"><div class="panel-title"><h2 class="main-title card-title" id="comparisonTitle">Bảng đối chiếu</h2><span class="panel-caption">Tự cập nhật khi sửa ô</span></div>
+      <div class="table-scroll"><table class="comparison-table"><thead><tr><th>Tiêu chí kiểm tra</th><th>Kết quả</th><th>Giá trị đối chiếu và lý do</th></tr></thead><tbody id="checksTableBody"></tbody></table></div>
+    </section>
+  </div>
+  <aside id="results" class="result-sidebar" aria-labelledby="resultsTitle">
+    <h2 class="main-title card-title" id="resultsTitle">Kết quả kiểm tra</h2><p class="sidebar-intro">Ưu tiên các điểm cần xử lý.</p>
+    <div class="score-card"><div class="score-row"><div><span class="score-label">Điểm rủi ro</span><strong id="scoreValue">—</strong><span class="score-total">/100</span></div><span id="riskBadge" class="badge neutral">Chưa chạy</span></div>
+    <p id="riskExplanation">Chờ quét hồ sơ.</p><div class="score-rail"><span id="scoreFill"></span></div></div>
+    <div id="resultEmpty" class="result-empty">Chưa có kết quả kiểm tra.</div>
+    <div id="resultContent" hidden><div class="result-summary"><h4>Tổng hợp</h4><p id="checkSummary"></p></div><div id="checksList" class="checks-list"></div>
+      <button id="toggleChecksBtn" type="button" class="button view-all" hidden></button>
+      <a class="comparison-link" href="#comparison">Mở bảng đối chiếu</a>
+      <div class="panel radar"><div class="panel-title"><h3>Lịch Booking</h3><span id="radarOrigin" class="origin-tag"></span></div><div id="radarContent"></div></div>
+    </div>
+    <div class="panel draft"><div class="panel-title"><h3>Bản nháp C/O</h3><span class="badge amber">Chưa phải C/O chính thức</span></div>
+    <div id="draftFields" class="draft-fields"></div><div class="draft-actions"><button id="downloadBtn" type="button" class="button primary" data-icon="download" disabled>Tải JSON</button><button id="printBtn" type="button" class="button outline" data-icon="printer" disabled>In bản nháp</button></div></div>
+  </aside></div>
+</div></section>
+
+<section id="method" class="method-section section dark" aria-labelledby="methodTitle"><div class="wrap">
+  <div class="section-head"><div><h2 class="main-title" id="methodTitle">Phương pháp kiểm tra</h2><p>Mỗi tiêu chí gắn với chứng từ và giá trị cần so sánh.</p></div><span class="section-icon" data-icon="list"></span></div>
+  <div class="table-scroll method-table-wrap"><table class="method-table"><thead><tr><th>Nhóm kiểm tra</th><th>Dữ liệu so sánh</th><th>Mục đích</th><th>Kết quả</th></tr></thead><tbody>
+  <tr><td>Hồ sơ</td><td>CI, PL, Tờ khai, Booking, B/L, C/O</td><td>Kiểm tra bộ lõi</td><td>Chứng từ còn thiếu</td></tr>
+  <tr><td>Thương mại và hải quan</td><td>Đối tác, Invoice, HS, lượng, đơn vị, trị giá</td><td>So khớp dữ liệu khai báo</td><td>Giá trị khớp hoặc chênh lệch</td></tr>
+  <tr><td>Đóng gói và vận tải</td><td>Net/Gross, cảng, container, seal</td><td>Kiểm tra giao nhận</td><td>Giá trị từng bên</td></tr>
+  <tr><td>Lịch tàu và phân luồng</td><td>ETD, lịch nối, cut-off, số ngày miễn phí, luồng</td><td>Xác định việc cần làm</td><td>Cảnh báo và hướng xử lý</td></tr></tbody></table></div>
+  <div class="method-grid"><div class="method-card"><h3>Trình diễn trong 7 bước</h3><ol>
+    <li>Mở trang DCS.</li><li>Tải bộ chứng từ minh họa.</li><li>Bấm Quét hồ sơ.</li><li>Xem danh sách chứng từ còn thiếu.</li><li>Mở nguồn và xác nhận từng trường.</li><li>Xem chênh lệch, lịch tàu và phân luồng.</li><li>Tải hoặc in bản nháp C/O.</li>
+  </ol></div><div class="method-card limitations"><h3>Giới hạn sử dụng</h3><ul>
+    <li>Bốn loại hình dùng chung quy trình minh họa.</li><li>Chỉ dùng hồ sơ minh họa. Dữ liệu được xử lý trong trình duyệt và mất khi tải lại trang.</li>
+    <li>Lần quét ảnh đầu tiên cần mạng để tải bộ OCR Việt và Anh.</li><li>Nhân viên xác nhận số liệu OCR trước khi sử dụng.</li>
+    <li>DCS không kết nối ECUS, VNACCS/VCIS hay hệ thống cấp C/O. Trang không truyền tờ khai hoặc cấp C/O.</li>
+  </ul></div></div>
+  <div class="method-bottom">DCS (DOUBLE CHECK SYSTEM)</div>
+</div></section>
+</main>
+<dialog id="clearDialog" class="confirm-dialog"><form method="dialog"><h3>Xóa dữ liệu phiên này?</h3><p>Danh sách tệp, dữ liệu trích xuất, kết quả và bản nháp sẽ được xóa.</p><div class="dialog-actions"><button class="button outline" value="cancel">Giữ dữ liệu</button><button class="button danger" value="confirm">Xác nhận xóa</button></div></form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>
