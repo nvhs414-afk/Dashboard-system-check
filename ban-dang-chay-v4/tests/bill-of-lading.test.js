@@ -71,3 +71,17 @@ test('party boxes and cargo columns supply names, identifiers, and gross kilogra
     blGross: '1234.5',
   });
 });
+
+test('an aligned kilograms total beside Measurement survives a missing gross heading', () => {
+  const amount = span('1,234.500', 450, 102, 45);
+  const unit = span('KGS', 480, 93, 15);
+  assert.equal(
+    extractBillOfLadingFields([span('Measurement', 510, 120), amount, unit]).blGross,
+    '1234.5',
+  );
+  assert.equal(
+    extractBillOfLadingFields([span('Net Weight', 410, 120), amount, unit]).blGross,
+    undefined,
+  );
+  assert.equal(extractBillOfLadingFields([amount, unit, span('CBM', 560, 93)]).blGross, '1234.5');
+});

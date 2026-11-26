@@ -93,6 +93,37 @@ function grossWeight(rows, index, column) {
   return '';
 }
 
+function alignedKilograms(rows) {
+  const totals = new Set();
+  for (const [index, row] of rows.entries()) {
+    for (const unit of row.blocks.filter(({ text }) => /^(?:kgs?|kgm)$/i.test(text))) {
+      const volumeBesideWeight = row.blocks.some(
+        ({ x, text }) => x > unit.end && /^(?:cbm|m³)$/i.test(text),
+      );
+      const cargoHeading = rows
+        .slice(0, index)
+        .some(
+          (heading) =>
+            heading.y - row.y <= 38 &&
+            heading.blocks.some(
+              ({ x, text }) => x > unit.end && /^measurement$/i.test(headingText(text)),
+            ),
+        );
+      if (!cargoHeading && !volumeBesideWeight) continue;
+      for (let line = index - 1; line >= 0 && rows[line].y - row.y <= 14; line--) {
+        const weight = rows[line].blocks.find(
+          ({ end, text }) => Math.abs(end - unit.end) <= 6 && /^\d[\d.,]*$/.test(text),
+        );
+        if (!weight) continue;
+        const amount = num(weight.text);
+        if (Number.isFinite(amount)) totals.add(String(amount));
+        break;
+      }
+    }
+  }
+  return totals.size === 1 ? [...totals][0] : '';
+}
+
 function partyQualifier(rows, value) {
   for (
     let line = value.line + 1;
@@ -137,6 +168,8 @@ export function extractBillOfLadingFields(items) {
       break;
     }
   }
+  const weight = fields.blGross || alignedKilograms(rows);
+  if (weight) fields.blGross = weight;
   const lines = rows.map((row) => row.blocks.map(({ text }) => text).join(' ')).join('\n');
   return { ...fields, ...extractContainerSeal(lines) };
 }

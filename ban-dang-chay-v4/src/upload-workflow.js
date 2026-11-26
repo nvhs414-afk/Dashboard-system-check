@@ -111,12 +111,20 @@ async function expandSpreadsheet(item) {
   }));
 }
 
+function billFieldsFromPages(pages) {
+  return pages.reduce((fields, page) => ({ ...extractBillOfLadingFields(page), ...fields }), {});
+}
+
 async function readQueueItem(item) {
   const pdfPages = [];
+  const ocrPages = [];
   let text =
     item.kind === 'sheet'
       ? item.sheetText
-      : await readDocument(item.file, item.kind, { onPdfPage: (items) => pdfPages.push(items) });
+      : await readDocument(item.file, item.kind, {
+          onPdfPage: (items) => pdfPages.push(items),
+          onOcrPage: (items) => ocrPages.push(items),
+        });
   item.raw = text;
   item.type = sourceType(item.kind === 'sheet' ? item.sheetName : item.file.name, text);
   if (!text.trim()) throw Error('Không đọc được nội dung; kiểm tra chất lượng tệp hoặc nhập tay.');
@@ -124,19 +132,35 @@ async function readQueueItem(item) {
     item.status = 'Bỏ qua';
     item.fields = {};
   } else {
-    let positionedFields = {};
-    if (item.type === 'bl') {
-      for (const page of pdfPages) {
-        positionedFields = { ...extractBillOfLadingFields(page), ...positionedFields };
-      }
-    }
+    const bill = item.type === 'bl';
+    const positionedFields = bill
+      ? { ...billFieldsFromPages(ocrPages), ...billFieldsFromPages(pdfPages) }
+      : {};
     item.fields = { ...extractFields(item.type, text, item.sheetRows), ...positionedFields };
-    if (item.kind === 'pdf' && Object.keys(item.fields).length < 3) {
+    const needsOcr = bill
+      ? ['blExporter', 'blImporter', 'blPol', 'blPod', 'blContainer', 'blSeal', 'blGross'].some(
+          (field) => !item.fields[field],
+        )
+      : Object.keys(item.fields).length < 3;
+    if (item.kind === 'pdf' && needsOcr) {
       try {
         $('progressText').textContent = `Đang OCR bổ sung ${item.name}`;
-        const ocrText = await readDocument(item.file, 'pdf', { forceOcr: true }),
-          expanded = { ...extractFields(item.type, text + '\n' + ocrText), ...positionedFields };
-        if (Object.keys(expanded).length > Object.keys(item.fields).length) {
+        const extraPages = [];
+        const ocrText = await readDocument(item.file, 'pdf', {
+          forceOcr: true,
+          onOcrPage: (items) => extraPages.push(items),
+        });
+        const extraFields = bill ? billFieldsFromPages(extraPages) : {};
+        const expanded = {
+          ...item.fields,
+          ...extractFields(item.type, text + '\n' + ocrText),
+          ...extraFields,
+          ...positionedFields,
+        };
+        if (
+          Object.keys(expanded).length > Object.keys(item.fields).length ||
+          Object.keys(extraFields).length
+        ) {
           text += '\n' + ocrText;
           item.raw = text;
           item.fields = expanded;

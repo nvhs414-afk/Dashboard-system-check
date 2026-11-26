@@ -14,26 +14,79 @@ async function ocr(source){
  const worker=await window.Tesseract.createWorker('eng+vie');
  try{return (await worker.recognize(source)).data.text||''}finally{await worker.terminate()}
 }
-async function pdfText(file,{forceOcr=false,onPdfPage}={}){
- const pdf=await getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
- let text='',worker;
- try{
-  for(let n=1;n<=pdf.numPages;n++){
-   const page=await pdf.getPage(n),content=await page.getTextContent();let pageText='',lastY=null;
-   if(onPdfPage)onPdfPage(content.items);
-   for(const item of content.items){const y=item.transform?.[5];if(lastY!==null&&Math.abs(y-lastY)>2)pageText+='\n';pageText+=(item.str||'')+' ';lastY=y}
-   if(forceOcr||pageText.replace(/\s/g,'').length<40){
-    if(!window.Tesseract)throw Error(`Trang ${n}: chưa tải được bộ OCR. Kiểm tra internet và thử lại.`);
-    worker ||= await window.Tesseract.createWorker('eng+vie');
-    const v=page.getViewport({scale:1.65}),canvas=document.createElement('canvas');
-    canvas.width=Math.ceil(v.width);canvas.height=Math.ceil(v.height);
-    await page.render({canvasContext:canvas.getContext('2d'),viewport:v}).promise;
-    pageText=(await worker.recognize(canvas)).data.text||pageText;
-   }
-   text+=`\n[Trang ${n}]\n${pageText}\n`;
+function ocrTextItems(data, scale) {
+  const lines = data.lines || data.blocks?.flatMap((block) =>
+    block.paragraphs.flatMap((paragraph) => paragraph.lines),
+  ) || [];
+  return lines.flatMap((line) => line.words.map(({ text, bbox }) => ({
+    str: text,
+    transform: [1, 0, 0, 1, bbox.x0 / scale, -line.bbox.y1 / scale],
+    width: (bbox.x1 - bbox.x0) / scale,
+    // OCR boxes hug the glyphs, so their height can be smaller than the printed word spacing.
+    height: Math.max(9, (bbox.y1 - bbox.y0) / scale),
+  })));
+}
+
+async function pdfText(file, { forceOcr = false, onPdfPage, onOcrPage } = {}) {
+  const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  let worker, ocrError, nativeError;
+  let usedOcr = false;
+  const pages = [];
+  try {
+    const pdf = await task.promise;
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const page = await pdf.getPage(number);
+      let pageText = '';
+      try {
+        const { items } = await page.getTextContent();
+        onPdfPage?.(items);
+        let lastY;
+        for (const item of items) {
+          const y = item.transform?.[5];
+          if (lastY != null && Math.abs(y - lastY) > 2) pageText += '\n';
+          pageText += (item.str || '') + ' ';
+          lastY = y;
+        }
+      } catch (error) {
+        nativeError ??= error;
+      }
+
+      if (forceOcr || pageText.replace(/\s/g, '').length < 40) {
+        try {
+          if (!window.Tesseract) {
+            throw Error(`Trang ${number}: chưa tải được bộ OCR. Kiểm tra internet và thử lại.`);
+          }
+          worker ||= await window.Tesseract.createWorker('eng+vie');
+          const scale = 2.2;
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          try {
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+            if (data.text?.trim()) {
+              usedOcr = true;
+              pageText = data.text;
+              onOcrPage?.(ocrTextItems(data, scale));
+            }
+          } finally {
+            canvas.width = canvas.height = 0;
+          }
+        } catch (error) {
+          ocrError ??= error;
+        }
+      }
+      if (pageText.trim()) pages.push(`[Trang ${number}]\n${pageText}`);
+    }
+    // A blank or unreadable attachment must not discard text read from earlier pages.
+    if (forceOcr && !usedOcr && ocrError) throw ocrError;
+    if (!pages.length && (ocrError || nativeError)) throw ocrError || nativeError;
+    return pages.join('\n');
+  } finally {
+    await task.destroy();
+    if (worker) await worker.terminate();
   }
-  return text;
- }finally{if(worker)await worker.terminate()}
 }
 function decoded(bytes){let t=new TextDecoder('utf-8').decode(bytes);if((t.match(/�/g)||[]).length>3)t=new TextDecoder('windows-1252').decode(bytes);return t}
 function xmlParagraphs(xml){const doc=new DOMParser().parseFromString(xml,'application/xml');if(doc.querySelector('parsererror'))throw Error('Cấu trúc XML trong tệp bị lỗi.');const ps=[...doc.getElementsByTagNameNS('*','p')];return ps.map(el=>el.textContent).filter(Boolean).join('\n')||doc.documentElement.textContent||''}

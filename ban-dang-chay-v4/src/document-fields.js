@@ -1,9 +1,9 @@
 export const fields = {
   invoice: [
-    ['invoiceNo', 'Số Invoice'],
-    ['invoiceDate', 'Ngày Invoice'],
     ['exporter', 'Shipper'],
     ['importer', 'Consignee'],
+    ['invoiceNo', 'Số Invoice'],
+    ['invoiceDate', 'Ngày Invoice'],
     ['invoiceQty', 'Số lượng'],
     ['invoiceUnit', 'Đơn vị'],
     ['invoiceGross', 'Gross Weight (kg)'],
@@ -11,9 +11,9 @@ export const fields = {
     ['description', 'Tên hàng'],
   ],
   packing: [
-    ['plInvoiceNo', 'Số Invoice trên PL'],
     ['plExporter', 'Shipper'],
     ['plImporter', 'Consignee'],
+    ['plInvoiceNo', 'Số Invoice trên PL'],
     ['plQty', 'Số lượng'],
     ['plUnit', 'Đơn vị'],
     ['plGross', 'Gross Weight (kg)'],
@@ -36,6 +36,8 @@ export const fields = {
     ['decSeal', 'Seal'],
   ],
   booking: [
+    ['bookingShipper', 'Shipper'],
+    ['bookingConsignee', 'Consignee'],
     ['bookingNo', 'Số Booking'],
     ['etd', 'ETD (ngày)'],
     ['etaFirst', 'ETA chặng 1'],
