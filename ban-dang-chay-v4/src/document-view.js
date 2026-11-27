@@ -1,4 +1,5 @@
 import { $, esc } from './dom.js';
+import { bookingDeadlineWarnings, bookingWarningLabels } from './booking-deadlines.js';
 import { fields, groups, required, types } from './document-fields.js';
 import { freeTimeFields } from './booking-free-time.js';
 import {
@@ -96,7 +97,7 @@ export function renderForm(onEdit) {
   );
   const booking = state.active === 'booking';
   const secondLeg = { etaFirst: 'etaSecond', etd: 'etdConnect' };
-  const controls = fields[state.active].map(([key, label]) => {
+  const controls = fields[state.active].flatMap(([key, label]) => {
     const content = esc(value(key));
     if (key === 'plItems') {
       return `<div class="field field-wide"><label for="field-${key}">${esc(label)}</label><small id="packing-item-format">Item - Description of goods - Size - Quantity (PCS/SET)</small><textarea id="field-${key}" data-field="${key}" rows="5" aria-describedby="packing-item-format" placeholder="Chưa đọc được">${content}</textarea></div>`;
@@ -109,7 +110,8 @@ export function renderForm(onEdit) {
     }
     const freeTime = Object.hasOwn(freeTimeFields, key);
     const placeholder = freeTime ? 'Cần xác nhận' : 'Chưa đọc được';
-    return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="${placeholder}"${freeTime ? ' inputmode="numeric"' : ''}></div>`;
+    const input = `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="${placeholder}"${freeTime ? ' inputmode="numeric"' : ''}></div>`;
+    return key === 'freeDays' ? [input, renderBookingWarningsPanel()] : input;
   });
   if (booking) controls.push(renderBookingFreeTimeEvidence());
   $('formPanel').innerHTML =
@@ -122,6 +124,7 @@ export function renderForm(onEdit) {
         state.manual.add(input.dataset.field);
         input.title = input.value;
         renderSupplementalFields();
+        refreshBookingWarnings();
         if (state.queue.some((f) => f.status === 'Đã nhận diện')) onEdit();
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';
       }),
@@ -131,19 +134,50 @@ export function renderForm(onEdit) {
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
     : 'Chưa trích được trường nhóm này';
   renderSupplementalFields();
+  refreshBookingWarnings();
+}
+
+function renderBookingWarningsPanel() {
+  const eventFields = [
+    ['bookingPickupActual', 'Lấy container rỗng thực tế'],
+    ['bookingGateInActual', 'Hạ bãi thực tế (gate-in)'],
+    ['bookingAtd', 'Khởi hành thực tế (ATD)'],
+  ];
+  const controls = eventFields.map(([key, label]) => {
+    const content = esc(value(key));
+    return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="DD/MM/YYYY HH:mm"></div>`;
+  });
+  return `<section class="field-wide booking-warnings" aria-label="Cảnh báo DEM và DET">
+    <div id="bookingWarnings" class="booking-warning-grid" aria-live="polite"></div>
+    <p class="booking-warning-note">Ước tính cho hàng xuất theo ngày lịch, tính ngày bắt đầu là ngày 1, theo giờ Việt Nam. Cảnh báo cập nhật khi mở trang.</p>
+    <details><summary>Mốc thực tế dùng để đối chiếu</summary><div class="booking-warning-grid">${controls.join('')}</div></details>
+  </section>`;
+}
+
+export function refreshBookingWarnings() {
+  const panel = $('bookingWarnings');
+  if (!panel) return;
+  const warnings = bookingDeadlineWarnings(value, bookingFreeTimeEvidence());
+  const markup = Object.entries(warnings)
+    .map(([key, warning]) => {
+      const { status, message, detail, deadline, reminder } = warning;
+      return `<article class="booking-warning" data-warning="${key}" data-status="${status}"><h4>${bookingWarningLabels[key]}</h4><strong>${esc(message)}</strong>${deadline ? `<p>Hạn dự kiến <b>${esc(deadline)}</b><br>Mốc nhắc trước 24 giờ <b>${esc(reminder)}</b></p>` : ''}<p>${esc(detail)}</p></article>`;
+    })
+    .join('');
+  if (panel.innerHTML !== markup) panel.innerHTML = markup;
 }
 
 function renderBookingFreeTimeEvidence() {
   const evidence = bookingFreeTimeEvidence();
   if (!evidence.length) return '';
   const clauses = new Map();
-  for (const { file, page, quote, applicable } of evidence) {
+  for (const { file, page, quote, commodity, applicable } of evidence) {
     const location = file + (page ? ' · Trang ' + page : '');
-    clauses.set(location + '\n' + quote, { location, quote, applicable });
+    clauses.set(location + '\n' + quote, { location, quote, commodity, applicable });
   }
   const items = [...clauses.values()].map(
-    ({ location, quote, applicable }) =>
-      `<li><small>${esc(location)}${applicable ? '' : ' · Điều khoản theo loại hàng khác hoặc cần xác nhận'}</small><div>${esc(quote)}</div></li>`,
+    ({ location, quote, commodity, applicable }) =>
+      `<li><small>${esc(location)}${commodity ? ' · Hàng: ' + esc(commodity) : ''}${applicable ? '' : ' · Điều khoản theo loại hàng khác hoặc cần xác nhận'}</small><div>${esc(quote)}</div></li>`,
   );
   const tariff = evidence.some(({ field, applicable }) => field === 'tariff' && applicable)
     ? '<p>Booking dẫn chiếu biểu phí hãng tàu. Cần tra biểu phí để xác nhận số ngày.</p>'

@@ -142,6 +142,22 @@ export function bookingNoticeFields(text) {
       text,
       String.raw`Estimated Empty Pick[- ]?up Date(?:[ \t]*\([^\r\n)]*\))?`,
     ),
+    bookingPickupActual: dateAfter(
+      text,
+      String.raw`\bActual[ \t]+Empty[ \t]+Pick[- ]?up(?:[ \t]+Date(?:[ \t]*/[ \t]*Time)?)?`,
+    ),
+    bookingGateInActual: dateAfter(
+      text,
+      String.raw`\bActual[ \t]+Gate[- ]?in(?:[ \t]+(?:Date(?:[ \t]*/[ \t]*Time)?|Time))?`,
+    ),
+    bookingGateInPlanned: dateAfter(
+      text,
+      String.raw`\b(?:Planned|Estimated)[ \t]+Gate[- ]?in(?:[ \t]+(?:Date|Time))?`,
+    ),
+    bookingAtd: dateAfter(
+      text,
+      String.raw`\b(?:ATD|Actual[ \t]+(?:Time[ \t]+of[ \t]+Departure|Departure(?:[ \t]+(?:Date|Time))?))\b(?:[ \t]*\(ATD\))?`,
+    ),
     bookingPickupCy: emptyPickupCy(text),
     cyCutoff: dateAfter(
       text,

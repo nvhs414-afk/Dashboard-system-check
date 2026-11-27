@@ -306,3 +306,30 @@ html,body{overflow-x:clip}
 .free-time-evidence summary { cursor: pointer; }
 .free-time-evidence small { color: var(--muted); }
 .free-time-evidence li + li { margin-top: 8px; }
+
+.booking-warning-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.booking-warning {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--blue);
+  border-radius: 4px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+.booking-warning[data-warning="sailing"] { grid-column: 1 / -1; }
+.booking-warning[data-status="pending"] { border-left-color: #8797a9; }
+.booking-warning[data-status="warning"] { background: #fff8eb; border-left-color: var(--amber); }
+.booking-warning[data-status="alert"] { background: #fff4f5; border-left-color: var(--red); }
+.booking-warning h4 { margin: 0 0 4px; font-size: 13px; }
+.booking-warning strong { display: block; font-size: 14px; }
+.booking-warning p, .booking-warning-note { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.booking-warnings details { margin-top: 8px; }
+.booking-warnings summary { cursor: pointer; }
+.booking-warnings details .booking-warning-grid { margin-top: 8px; }
+@media (max-width: 620px) {
+  .booking-warning-grid { grid-template-columns: minmax(0, 1fr); }
+}

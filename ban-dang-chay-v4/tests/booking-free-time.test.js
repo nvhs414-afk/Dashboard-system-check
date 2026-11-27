@@ -8,6 +8,7 @@ test('Booking reads separately stated DEM and DET, including across a wrapped li
   const text = [
     '[Trang 1]',
     'Equipment Type : Dry Container Equipment Size : 4H',
+    'Commodity Code : 9403000007 Commodity Desc. : FURNITURE Flex EQ : No',
     'RF : No DG : No',
     '[Trang 2]',
     'Remarks: Free 6DET +',
@@ -18,7 +19,11 @@ test('Booking reads separately stated DEM and DET, including across a wrapped li
   assert.deepEqual(resolveFreeTime(evidence), { demFree: '7', detFree: '6' });
   assert.ok(
     evidence.some(
-      (entry) => entry.page === 2 && entry.applicable && /DC-general/.test(entry.quote),
+      (entry) =>
+        entry.page === 2 &&
+        entry.applicable &&
+        entry.commodity === 'FURNITURE' &&
+        /DC-general/.test(entry.quote),
     ),
   );
   assert.ok(evidence.some((entry) => !entry.applicable && /Reefer/.test(entry.quote)));
@@ -39,6 +44,41 @@ test('Booking reads separately stated DEM and DET, including across a wrapped li
   assert.equal(
     radar.checks.some(({ title }) => /DEM\/DET/.test(title)),
     false,
+  );
+});
+
+test('same equipment and cargo flags can have different free time by commodity', () => {
+  const booking = 'Equipment Type: Dry Container\nRF: No DG: No\n';
+  const terms = 'Free 4DET + 8DEM for furniture cargo. For textiles: Free 2DET + 5DEM.';
+  const extract = (description) =>
+    resolveFreeTime(bookingFreeTime(`${booking}Commodity Desc. : ${description}\n${terms}`));
+  assert.deepEqual(extract('WOODEN FURNITURE Flex EQ : No'), { demFree: '8', detFree: '4' });
+  assert.deepEqual(extract('TEXTILES'), { demFree: '5', detFree: '2' });
+  assert.deepEqual(extract('FOOD'), {});
+  assert.deepEqual(extract(''), {});
+});
+
+test('commodity exceptions and conflicting cargo details are respected', () => {
+  const booking = 'Equipment Type: Dry Container\nRF: No DG: No\n';
+  const general = 'Free 6DET + 7DEM for DC-general cargo.';
+  const special = 'Free 5DET+5DEM for Dry-DG, RD, FR, OT.';
+  const extract = (text) => resolveFreeTime(bookingFreeTime(text));
+  assert.deepEqual(extract(`${booking}Commodity Desc: FURNITURE\n${general} ${special}`), {
+    demFree: '7',
+    detFree: '6',
+  });
+  assert.deepEqual(
+    extract(
+      `${booking.replace('DG: No', 'DG: Yes')}Commodity Desc: FURNITURE\n${general} ${special}`,
+    ),
+    { demFree: '5', detFree: '5' },
+  );
+  assert.deepEqual(extract(`${booking}Commodity Desc: DANGEROUS GOODS\n${general} ${special}`), {});
+  assert.deepEqual(
+    extract(
+      `${booking}Commodity Desc: FURNITURE\nFree 6DET + 7DEM for DC-general cargo except furniture.`,
+    ),
+    {},
   );
 });
 

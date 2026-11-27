@@ -1,7 +1,7 @@
 import { $, toast } from './dom.js';
 import { mountIcons } from './icons.js';
 import { state, value } from './session.js';
-import { renderForm, renderQueue } from './document-view.js';
+import { refreshBookingWarnings, renderForm, renderQueue } from './document-view.js';
 import { renderCheckList, renderComparisonTable, resetDraft } from './results-view.js';
 import { runChecks } from './review.js';
 import { queueFiles, scan } from './upload-workflow.js';
@@ -89,4 +89,6 @@ resetDraft();
 renderComparisonTable();
 renderQueue();
 renderForm(runChecks);
+window.setInterval(refreshBookingWarnings, 30_000);
+window.addEventListener('focus', refreshBookingWarnings);
 mountSiteUi();
