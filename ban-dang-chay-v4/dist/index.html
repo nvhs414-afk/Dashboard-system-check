@@ -6,9 +6,12 @@
   <meta name="theme-color" content="#102a43">
   <title>DCS (DOUBLE CHECK SYSTEM)</title>
   <meta name="description" content="Mô phỏng đối chiếu bộ chứng từ vận tải FCL/LCL trực tiếp trong trình duyệt.">
-  <link rel="stylesheet" href="./styles.css?v=booking-layout-3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Archivo:wght@400;500;600&amp;family=Inter:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
+  <link rel="stylesheet" href="./styles.css?v=lovable-ui-1">
   <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-  <script type="module" src="./app.js?v=booking-pickup-cy-1"></script>
+  <script type="module" src="./app.js?v=lovable-ui-1"></script>
 </head>
 <body>
   <header class="topbar">
@@ -17,6 +20,7 @@
     </div>
   </header>
   <main>
+    <div id="freightHero"></div>
     <section id="overview" class="overview section"><div class="wrap">
       <div class="hero-grid"><div><p class="eyebrow">DCS / DOUBLE CHECK SYSTEM</p><h1>Kiểm tra bộ chứng từ<br><span>trước khi khai báo.</span></h1><p class="lead">DCS tiếp nhận bộ hồ sơ FCL/LCL trong một lần tải, nhận diện chứng từ, đối chiếu dữ liệu và chỉ ra điểm cần xác minh trước khi nhân viên xử lý.</p><div class="hero-actions"><a class="button primary" href="#input" data-icon="upload">Tải bộ chứng từ</a></div><p class="subtle">Bản mô phỏng phục vụ trình diễn và học tập, không dùng để khai báo thật.</p></div>
       <aside class="hero-card"><div class="card-kicker" data-icon="layers">LUỒNG XỬ LÝ DCS</div><div class="flow-step"><span>01</span><div><strong>Nhận chứng từ</strong><small>PDF, Word, Excel, ảnh và ZIP</small></div></div><div class="flow-step"><span>02</span><div><strong>Nhận diện &amp; đối chiếu</strong><small>Đọc nội dung, kiểm tra thiếu và sai khác</small></div></div><div class="flow-step"><span>03</span><div><strong>Nhân viên xác nhận</strong><small>Sửa trường đọc được, xem rủi ro và xuất bản nháp</small></div></div></aside></div>

@@ -5,6 +5,7 @@ import { renderForm, renderQueue } from './document-view.js';
 import { renderCheckList, renderComparisonTable, resetDraft } from './results-view.js';
 import { runChecks } from './review.js';
 import { queueFiles, scan } from './upload-workflow.js';
+import { mountSiteUi } from './site-ui.tsx';
 
 mountIcons();
 
@@ -88,3 +89,4 @@ resetDraft();
 renderComparisonTable();
 renderQueue();
 renderForm(runChecks);
+mountSiteUi();
