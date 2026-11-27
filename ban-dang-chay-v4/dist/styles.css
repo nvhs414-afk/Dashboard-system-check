@@ -11,5 +11,3 @@
 @media print{.input-section{display:block!important;background:#fff!important;padding:0!important}.input-section .section-head,.input-main{display:none!important}.input-layout{display:block}.result-sidebar{display:block!important;position:static;max-height:none;overflow:visible;box-shadow:none;border:0}.result-sidebar .result-summary,.result-sidebar .checks-list,.result-sidebar .radar,.result-sidebar .view-all{display:none!important}.result-sidebar .draft{display:block!important}.result-sidebar .draft-actions{display:none!important}}
 
 .input-main .booking-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.booking-field-grid .booking-number { grid-column: 1 / -1; }
-.booking-field-grid .booking-arrival-row { grid-column: 1; }

@@ -108,3 +108,22 @@ test('weight checks use the shared invoice value and ignore formatting differenc
     'fail',
   );
 });
+
+test('quantity and unit checks use the same Packing List unit shown in the invoice', () => {
+  const queue = ['invoice', 'packing'].map((type) => ({ type, status: 'Đã nhận diện' }));
+  const fields = { invoiceQty: '142', invoiceUnit: 'PCS', plQty: '142', plUnit: 'PCS/SET' };
+  const value = (key) => fields[key] || '';
+  const reviewed = evaluateShipment(queue, value, { packingUnit: 'PCS/SET' });
+  assert.equal(reviewed.draft.soLuong, '142 PCS/SET');
+  const find = (title) => reviewed.checks.find((check) => check.title === title);
+  assert.equal(find('CI ↔ PL · Số lượng').status, 'pass');
+  const unitCheck = find('CI ↔ PL · Đơn vị');
+  assert.equal(unitCheck.status, 'pass');
+  assert.match(unitCheck.detail, /Nguồn 1: PCS\/SET · Nguồn 2: PCS\/SET/);
+  assert.equal(find('CI ↔ PL · Số lượng và đơn vị'), undefined);
+  const independent = evaluateShipment(queue, value);
+  assert.equal(
+    independent.checks.find(({ title }) => title === 'CI ↔ PL · Số lượng và đơn vị').status,
+    'expected',
+  );
+});

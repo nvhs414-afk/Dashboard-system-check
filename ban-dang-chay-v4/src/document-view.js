@@ -90,15 +90,13 @@ export function renderForm(onEdit) {
   const secondLeg = { etaFirst: 'etaSecond', etd: 'etdConnect' };
   const controls = fields[state.active].map(([key, label]) => {
     const content = esc(value(key));
-    const layout =
-      key === 'bookingNo' ? ' booking-number' : key === 'etaFirst' ? ' booking-arrival-row' : '';
     if (
       !content &&
       (key === 'etaSecond' || key === 'etdConnect' || (secondLeg[key] && value(secondLeg[key])))
     ) {
-      return `<div class="field${layout}" aria-hidden="true"></div>`;
+      return '<div class="field" aria-hidden="true"></div>';
     }
-    return `<div class="field${layout}"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
+    return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
   });
   $('formPanel').innerHTML =
     `<div class="field-grid${booking ? ' booking-field-grid' : ''}">${controls.join('')}</div>`;
@@ -129,6 +127,7 @@ function renderSupplementalInvoiceFields() {
   for (const [field, caption, packingValue] of packingValues) {
     const input = $('field-' + field);
     input.value = state.manual.has(field) ? state.form[field] : packingValue || value(field);
+    input.title = input.value;
     const label = $('formPanel').querySelector(`label[for="field-${field}"]`);
     label.textContent = packingValue ? caption + ' · Packing List' : caption;
   }

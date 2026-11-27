@@ -30,9 +30,9 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
     pair('CI ↔ PL · Số Invoice', 'invoiceNo', 'plInvoiceNo');
     pair('CI ↔ PL · Người xuất khẩu', 'exporter', 'plExporter');
     pair('CI ↔ PL · Người nhập khẩu', 'importer', 'plImporter');
-    let iq = value('invoiceQty'),
+    const iq = value('invoiceQty'),
       pq = value('plQty'),
-      iu = value('invoiceUnit'),
+      iu = packingUnit || value('invoiceUnit'),
       pu = value('plUnit');
     if (iq && pq && iu && pu && norm(iu) !== norm(pu))
       add(
@@ -41,7 +41,16 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
         `CI: ${iq} ${iu} · PL: ${pq} ${pu}. Chênh lệch dự kiến (Expected Difference): khác đơn vị đo; cần xác nhận quy đổi.`,
       );
     else pair('CI ↔ PL · Số lượng', 'invoiceQty', 'plQty', iu || pu, true);
-    if (iu && pu && norm(iu) === norm(pu)) pair('CI ↔ PL · Đơn vị', 'invoiceUnit', 'plUnit');
+    if (iu && pu && norm(iu) === norm(pu)) {
+      compare(
+        'CI ↔ PL · Đơn vị',
+        iu,
+        pu,
+        '',
+        eq,
+        packingUnit ? ' CI hiển thị đơn vị lấy từ Packing List khớp số Invoice và số lượng.' : '',
+      );
+    }
     pair('CI ↔ PL · Net Weight', 'invoiceNet', 'plNet', 'kg', true);
     compare(
       'CI ↔ PL · Gross Weight',
