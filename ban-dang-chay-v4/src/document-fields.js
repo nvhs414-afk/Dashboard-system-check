@@ -1,3 +1,5 @@
+import { freeTimeFields } from './booking-free-time.js';
+
 export const fields = {
   invoice: [
     ['exporter', 'Shipper'],
@@ -38,7 +40,7 @@ export const fields = {
     ['etdConnect', 'ETD chặng 2'],
     ['pickupDate', 'Ngày nhận container rỗng'],
     ['bookingPickupCy', 'Empty Pick-up CY'],
-    ['freeDays', 'Free time (ngày)'],
+    ...Object.entries(freeTimeFields),
     ['cyCutoff', 'CY cut-off'],
     ['icdCutoff', 'ICD cut-off'],
     ['siCutoff', 'SI cut-off'],

@@ -1,4 +1,4 @@
-import { date, formatDate, num } from './field-values.js';
+import { date, formatDate } from './field-values.js';
 
 export function makeRadar(value) {
   const v = value,
@@ -18,28 +18,19 @@ export function makeRadar(value) {
     detail: `Booking ${v('bookingNo') || 'chưa đọc được'} · ETD ${formatDate(v('etd'))}`,
     kind: 'normal',
   });
-  const pickup = date(v('pickupDate')),
-    etd = date(v('etd')),
-    free = num(v('freeDays'));
-  if (pickup && etd && Number.isFinite(free)) {
-    const days = Math.round((etd - pickup) / 86400000) + 1,
-      late = days - free;
-    lines.push({
-      title: 'DEM/DET · free time',
-      detail: `Nhận rỗng ${formatDate(v('pickupDate'))} → ETD ${formatDate(v('etd'))}: ${days} ngày, tính cả hai ngày · miễn phí ${free} ngày${late > 0 ? ` · vượt ${late} ngày` : ''}.`,
-      kind: late > 0 ? 'alert' : 'normal',
-    });
-    checks.push({
-      title: 'DEM/DET · free time',
-      status: late > 0 ? 'fail' : 'pass',
-      detail: `Thực tế ${days} ngày · free time ${free} ngày. ${late > 0 ? 'Cần xác minh phí lưu container.' : 'Trong hạn miễn phí.'}`,
-    });
-  } else
-    lines.push({
-      title: 'DEM/DET',
-      detail: 'Thiếu ngày nhận rỗng, ETD hoặc free time; cần xác minh với hãng tàu.',
-      kind: 'notice',
-    });
+  const allowances = [
+    ['Free DEM', v('demFree')],
+    ['Free DET', v('detFree')],
+    ['Miễn gộp DET + DEM', v('freeDays')],
+  ].filter(([, days]) => /^\d+$/.test(days));
+  lines.push({
+    title: 'DEM/DET · Free time',
+    detail: allowances.length
+      ? allowances.map(([label, days]) => `${label} ${days} ngày`).join(' · ') +
+        '. Xác nhận điều khoản và ngày thực tế trước khi tính phí.'
+      : 'Cần xác nhận số ngày miễn phí với hãng tàu hoặc đối chiếu biểu phí.',
+    kind: 'notice',
+  });
   const eta = date(v('etaFirst')),
     connection = date(v('etdConnect'));
   if (eta && connection) {

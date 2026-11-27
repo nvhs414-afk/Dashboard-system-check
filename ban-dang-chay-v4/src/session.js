@@ -1,4 +1,5 @@
 import { num } from './field-values.js';
+import { bookingFreeTime } from './booking-free-time.js';
 
 export const state = {
   queue: [],
@@ -14,6 +15,14 @@ export const state = {
 };
 export function value(k) {
   return String(state.form[k] ?? '').trim();
+}
+
+export function bookingFreeTimeEvidence() {
+  return state.queue
+    .filter((item) => item.type === 'booking' && item.status === 'Đã nhận diện')
+    .flatMap((item) =>
+      bookingFreeTime(item.raw || '').map((entry) => ({ ...entry, file: item.name })),
+    );
 }
 
 function matchingPackingLists() {

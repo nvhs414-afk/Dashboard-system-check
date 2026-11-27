@@ -1,6 +1,7 @@
 import { $, toast } from './dom.js';
 import { groups } from './document-fields.js';
-import { state } from './session.js';
+import { bookingFreeTimeEvidence, state } from './session.js';
+import { freeTimeFields, resolveFreeTime } from './booking-free-time.js';
 import { renderQueue, renderForm } from './document-view.js';
 import { renderComparisonTable } from './results-view.js';
 import { invalidateResult, runChecks } from './review.js';
@@ -66,6 +67,11 @@ function syncExtractedForm() {
       .sort((a, b) => Object.keys(b.fields).length - Object.keys(a.fields).length);
     for (const item of sources)
       for (const [key, val] of Object.entries(item.fields)) if (val && !next[key]) next[key] = val;
+  }
+  const freeTime = resolveFreeTime(bookingFreeTimeEvidence());
+  for (const key of Object.keys(freeTimeFields)) {
+    if (freeTime[key]) next[key] = freeTime[key];
+    else delete next[key];
   }
   for (const key of state.manual) next[key] = state.form[key] ?? '';
   state.form = next;

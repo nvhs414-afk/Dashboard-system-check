@@ -1,7 +1,9 @@
 import { $, esc } from './dom.js';
 import { fields, groups, required, types } from './document-fields.js';
+import { freeTimeFields } from './booking-free-time.js';
 import {
   billIdentifiersForPacking,
+  bookingFreeTimeEvidence,
   packingGrossForInvoice,
   packingUnitForInvoice,
   state,
@@ -105,8 +107,11 @@ export function renderForm(onEdit) {
     ) {
       return '<div class="field" aria-hidden="true"></div>';
     }
-    return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
+    const freeTime = Object.hasOwn(freeTimeFields, key);
+    const placeholder = freeTime ? 'Cần xác nhận' : 'Chưa đọc được';
+    return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="${placeholder}"${freeTime ? ' inputmode="numeric"' : ''}></div>`;
   });
+  if (booking) controls.push(renderBookingFreeTimeEvidence());
   $('formPanel').innerHTML =
     `<div class="field-grid${booking ? ' booking-field-grid' : ''}">${controls.join('')}</div>`;
   $('formPanel')
@@ -126,6 +131,24 @@ export function renderForm(onEdit) {
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
     : 'Chưa trích được trường nhóm này';
   renderSupplementalFields();
+}
+
+function renderBookingFreeTimeEvidence() {
+  const evidence = bookingFreeTimeEvidence();
+  if (!evidence.length) return '';
+  const clauses = new Map();
+  for (const { file, page, quote, applicable } of evidence) {
+    const location = file + (page ? ' · Trang ' + page : '');
+    clauses.set(location + '\n' + quote, { location, quote, applicable });
+  }
+  const items = [...clauses.values()].map(
+    ({ location, quote, applicable }) =>
+      `<li><small>${esc(location)}${applicable ? '' : ' · Điều khoản theo loại hàng khác hoặc cần xác nhận'}</small><div>${esc(quote)}</div></li>`,
+  );
+  const tariff = evidence.some(({ field, applicable }) => field === 'tariff' && applicable)
+    ? '<p>Booking dẫn chiếu biểu phí hãng tàu. Cần tra biểu phí để xác nhận số ngày.</p>'
+    : '';
+  return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET</summary>${tariff}<ul>${items.join('')}</ul></details>`;
 }
 
 function renderSupplementalFields() {

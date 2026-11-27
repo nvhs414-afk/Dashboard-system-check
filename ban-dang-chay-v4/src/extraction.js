@@ -2,6 +2,7 @@ import { extractInvoiceSheet } from './invoice-sheet.js';
 import { extractPackingSheet } from './packing-sheet.js';
 import { extractContainerSeal } from './bill-of-lading.js';
 import { bookingNoticeFields } from './booking-notice.js';
+import { bookingFreeTime, resolveFreeTime } from './booking-free-time.js';
 
 const plain=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 
@@ -68,12 +69,13 @@ function extract(type,text,rows){
  if(type==='packing'&&rows){
   for(const [key,value] of Object.entries(extractPackingSheet(rows)))if(value)o[key]=value;
  }
- if(type==='booking')o={bookingNo:ref(['booking\\s*(?:no\\.?|number|#)','số\\s*booking','so\\s*booking']),pickupDate:field(['empty\\s*pick.?up','ngày\\s*nhận\\s*container\\s*rỗng'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),freeDays:weight(['free\\s*time','số\\s*ngày\\s*miễn\\s*phí']),cyCutoff:field(['cy\\s*cut.?off']),icdCutoff:field(['icd\\s*cut.?off']),siCutoff:field(['si\\s*cut.?off']),bookingPol:field(['port\\s*of\\s*loading','cảng\\s*xếp\\s*hàng','pol'],party)};
+ if(type==='booking')o={bookingNo:ref(['booking\\s*(?:no\\.?|number|#)','số\\s*booking','so\\s*booking']),pickupDate:field(['empty\\s*pick.?up','ngày\\s*nhận\\s*container\\s*rỗng'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),cyCutoff:field(['cy\\s*cut.?off']),icdCutoff:field(['icd\\s*cut.?off']),siCutoff:field(['si\\s*cut.?off']),bookingPol:field(['port\\s*of\\s*loading','cảng\\s*xếp\\s*hàng','pol'],party)};
  if(type==='booking'){
   o.bookingShipper=field(['shipper','exporter'],party);
   o.bookingConsignee=field(['consignee','cnee'],party)||
     clean(text.match(/\bCNEE\s*[:：]\s*([^\r\n]+?)(?=\s+(?:WEIGHT|VOLUME)\b|\s*$)/im)?.[1]);
   for(const [key,value] of Object.entries(bookingNoticeFields(text)))if(value)o[key]=value;
+  Object.assign(o,resolveFreeTime(bookingFreeTime(text)));
  }
  if(type==='bl')o={blExporter:common.exporter,blImporter:common.importer,blPol:field(['port\\s*of\\s*loading','pol'],party),blPod:field(['port\\s*of\\s*discharge','pod'],party),blContainer:ref(['container(?:\\s*(?:no\\.?|number))?']),blSeal:field(['seal(?:\\s*(?:no\\.?|number))?'],s=>/^[A-Za-z0-9./_-]{2,70}$/i.test(s)),blGross:common.invoiceGross};
  if(type==='bl')Object.assign(o,extractContainerSeal(text));

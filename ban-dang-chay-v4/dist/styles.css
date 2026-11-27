@@ -298,3 +298,11 @@ html,body{overflow-x:clip}
   border-color: var(--orange);
   box-shadow: 0 0 0 3px rgba(194, 65, 12, .14);
 }
+.free-time-evidence {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  overflow-wrap: anywhere;
+}
+.free-time-evidence summary { cursor: pointer; }
+.free-time-evidence small { color: var(--muted); }
+.free-time-evidence li + li { margin-top: 8px; }
