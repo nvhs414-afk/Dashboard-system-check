@@ -1,4 +1,4 @@
-import { date, norm, weightText } from './field-values.js';
+import { date, norm } from './field-values.js';
 
 const timeStamp = String.raw`(?:\d{4}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}[./-]\d{4})(?:[ \t]+\d{1,2}:\d{2})?`;
 
@@ -112,11 +112,9 @@ export function bookingNoticeFields(text) {
     delivery.row,
     connecting,
   );
-  const gross = text.match(/\bGross\s+(?:WGT\.?|Weight)\s*[:：]\s*(\d[\d.,]*\s*(?:kgm|kgs?)\b)/i);
 
   return {
     bookingReceipt: receipt.place,
-    bookingReceiptTml: receipt.terminal,
     bookingPol: loading.place,
     bookingPolTml: loading.terminal,
     bookingDischarge: discharge.place,
@@ -136,7 +134,6 @@ export function bookingNoticeFields(text) {
       String.raw`Cargo Cut[- ]?off[ \t]*\(Terminal Facility\)(?:[ \t]*\([^\r\n)]*\))?`,
     ),
     siCutoff: dateAfter(text, String.raw`SI General Cut[- ]?off`),
-    plannedWeight: weightText(gross?.[1]),
   };
 }
 

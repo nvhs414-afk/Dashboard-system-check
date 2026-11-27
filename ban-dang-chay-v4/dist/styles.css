@@ -12,3 +12,4 @@
 
 .input-main .booking-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .booking-field-grid .booking-number { grid-column: 1 / -1; }
+.booking-field-grid .booking-arrival-row { grid-column: 1; }

@@ -15,6 +15,7 @@ test('booking reads both terminal fields and dates from an HMM-style notice', ()
     'Place of Delivery : SAMPLE DELIVERY TML : SAMPLE DEPOT ETA : 26/04/2026 5:00',
     'Cargo Information',
     'PKG-Count : 0 Gross WGT : 10,000.000 KGS Measurement : 0',
+    'Final Weight: 7,872.000 KGS',
     'Estimated Empty Pick-up Date (for reference) : 2026/03/30 11:00',
     'Cargo Cut-off (Terminal Facility) (DC) 2026/04/01 13:00 Cargo Cut-off (Return Facility) 2026/04/02 09:00',
     'SI General Cut-off 2026/03/31 09:00 VGM Cut-off 2026/03/31 10:00',
@@ -35,7 +36,8 @@ test('booking reads both terminal fields and dates from an HMM-style notice', ()
   assert.equal(fields.pickupDate, '2026/03/30 11:00');
   assert.equal(fields.cyCutoff, '2026/04/01 13:00');
   assert.equal(fields.siCutoff, '2026/03/31 09:00');
-  assert.equal(fields.plannedWeight, '10,000.000');
+  assert.equal(fields.plannedWeight, undefined);
+  assert.equal(fields.finalWeight, undefined);
 });
 
 test('a two-leg schedule respects explicit labels and matching dates appear once', () => {
@@ -53,7 +55,8 @@ test('a two-leg schedule respects explicit labels and matching dates appear once
   assert.equal(fields.etdConnect, '2026/04/12 16:00');
   assert.equal(fields.etaFirst, '2026/04/12 12:15');
   assert.equal(fields.etaSecond, '2026/04/26 05:00');
-  assert.equal(fields.bookingReceiptTml, 'DEMO ORIGIN TERMINAL');
+  assert.equal(fields.bookingReceipt, 'DEMO ORIGIN');
+  assert.equal(fields.bookingReceiptTml, undefined);
   const duplicate = text.replace('2026/04/26 05:00', '12-04-2026 12:15');
   assert.equal(extractFields('booking', duplicate).etaSecond, undefined);
 });

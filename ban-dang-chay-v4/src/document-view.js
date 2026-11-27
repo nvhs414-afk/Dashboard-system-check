@@ -87,15 +87,18 @@ export function renderForm(onEdit) {
     }),
   );
   const booking = state.active === 'booking';
-  const hasSecondLeg = booking && Boolean(value('etdConnect') || value('etaSecond'));
+  const secondLeg = { etaFirst: 'etaSecond', etd: 'etdConnect' };
   const controls = fields[state.active].map(([key, label]) => {
     const content = esc(value(key));
-    if (key === 'etdConnect' || key === 'etaSecond') {
-      if (!hasSecondLeg) return '';
-      if (!content) return '<div aria-hidden="true"></div>';
+    const layout =
+      key === 'bookingNo' ? ' booking-number' : key === 'etaFirst' ? ' booking-arrival-row' : '';
+    if (
+      !content &&
+      (key === 'etaSecond' || key === 'etdConnect' || (secondLeg[key] && value(secondLeg[key])))
+    ) {
+      return `<div class="field${layout}" aria-hidden="true"></div>`;
     }
-    const className = key === 'bookingNo' ? 'field booking-number' : 'field';
-    return `<div class="${className}"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
+    return `<div class="field${layout}"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
   });
   $('formPanel').innerHTML =
     `<div class="field-grid${booking ? ' booking-field-grid' : ''}">${controls.join('')}</div>`;

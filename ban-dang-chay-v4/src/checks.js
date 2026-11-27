@@ -68,14 +68,6 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
     pair('Booking ↔ PL · Container', 'bookingContainer', 'plContainer');
   if (has('packing') && has('bl'))
     pair('PL ↔ B/L · Gross Weight', 'plGross', 'blGross', 'kg', true);
-  let planned = value('plannedWeight'),
-    final = value('finalWeight') || value('plGross');
-  if (has('booking') && planned && final)
-    add(
-      'Planned Weight ↔ Final Weight',
-      eq(planned, final, true) ? 'pass' : 'expected',
-      `Kế hoạch: ${planned} kg · Thực tế: ${final} kg. ${eq(planned, final, true) ? 'Phù hợp.' : 'Chênh lệch kế hoạch – thực tế cần xác minh; không tự kết luận sai.'}`,
-    );
   let seals = [
     ['PL', value('plSeal')],
     ['Booking', value('bookingSeal')],
