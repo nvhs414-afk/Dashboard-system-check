@@ -19,6 +19,7 @@ export const fields = {
     ['plGross', 'Gross Weight (kg)'],
     ['plContainer', 'Container'],
     ['plSeal', 'Seal'],
+    ['plItems', 'Danh sách mặt hàng'],
   ],
   booking: [
     ['bookingShipper', 'Shipper'],

@@ -6,6 +6,18 @@ const netHeading = /^(?:net weight|trong luong tinh)(?: kg| kgs| kgm)?$/;
 const cartonsHeading =
   /^(?:(?:no of|number of|total) )?(?:ctn s|ctns?|cartons?|so thung)(?: qty| quantity)?$/;
 const quantityHeading = /^(?:quantity|qty|so luong)(?: |$)/;
+const itemHeading = /^(?:item(?: no| number| code)?|sku|ma hang)$/;
+const descriptionHeading =
+  /^(?:description(?: of goods)?|goods description|ten hang|mo ta hang hoa)$/;
+const sizeHeading = /^(?:size|dimensions?|kich thuoc)(?: |$)/;
+const totalHeading = /^(?:total|grand total|tong cong)$/;
+const subtotalHeading = /^(?:sub ?total|page total|tong phu)(?: |$)/;
+
+const cellText = (cell) =>
+  String(cell ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+const isTotalRow = (row) => row.some((cell) => totalHeading.test(norm(cell)));
 
 function totalNumber(cell) {
   const amount = String(cell ?? '').trim();
@@ -23,6 +35,55 @@ function totalWeight(total, header, column) {
   return weightText(cell);
 }
 
+function packingItems(rows) {
+  const headerIndex = rows.findIndex((row) => {
+    const labels = row.map(norm);
+    return [itemHeading, descriptionHeading, quantityHeading].every((label) =>
+      labels.some((value) => label.test(value)),
+    );
+  });
+  if (headerIndex < 0) return '';
+
+  const header = rows[headerIndex];
+  const column = (label) => header.findIndex((cell) => label.test(norm(cell)));
+  const item = column(itemHeading);
+  const description = column(descriptionHeading);
+  const size = column(sizeHeading);
+  const quantity = column(quantityHeading);
+  const following = rows.slice(headerIndex + 1);
+  const totalIndex = following.findIndex(isTotalRow);
+  const details = (totalIndex < 0 ? following : following.slice(0, totalIndex)).filter((row) => {
+    const itemCode = norm(row[item]);
+    const itemDescription = cellText(row[description]);
+    const itemQuantity = totalNumber(row[quantity]);
+    if (itemHeading.test(itemCode) || subtotalHeading.test(itemCode || norm(itemDescription)))
+      return false;
+    return itemCode ? itemDescription || itemQuantity : itemDescription && itemQuantity;
+  });
+  if (!details.length) return '';
+
+  const total = totalNumber(following[totalIndex]?.[quantity]);
+  const sumMatchesTotal = (index) => {
+    const numbers = details.map((row) => totalNumber(row[index]));
+    if (!total || numbers.some((number) => !number)) return false;
+    const sum = numbers.reduce((sum, number) => sum + Number(number), 0);
+    return Math.abs(sum - Number(total)) <= Math.max(1, Math.abs(sum)) * 1e-8;
+  };
+  // Merged cells can put quantities per carton on the left and line totals on the right.
+  // Use the adjacent column only when it shares the heading and its sum confirms the total.
+  const quantityColumn =
+    !cellText(header[quantity + 1]) && !sumMatchesTotal(quantity) && sumMatchesTotal(quantity + 1)
+      ? quantity + 1
+      : quantity;
+  return details
+    .map((row) =>
+      [row[item], row[description], row[size], row[quantityColumn]]
+        .map((cell) => cellText(cell) || '—')
+        .join(' - '),
+    )
+    .join('\n');
+}
+
 export function extractPackingSheet(rows) {
   const headerIndex = rows.findIndex(
     (row) =>
@@ -34,7 +95,9 @@ export function extractPackingSheet(rows) {
             netHeading.test(cell) ||
             cartonsHeading.test(cell) ||
             quantityHeading.test(cell) ||
-            /^(?:item|description(?: of goods)?|d?on vi(?: tinh)?|unit|uom)$/.test(cell),
+            itemHeading.test(cell) ||
+            descriptionHeading.test(cell) ||
+            /^(?:d?on vi(?: tinh)?|unit|uom)$/.test(cell),
         ).length >= 2,
   );
   const titleIndex = rows.findIndex((row) => row.some((cell) => norm(cell) === 'packing list'));
@@ -53,13 +116,12 @@ export function extractPackingSheet(rows) {
   const seal = labeledValue(rows, /^(?:seal(?: no| number)?|so seal)$/);
   if (/^[A-Z]{4}\d{7}$/i.test(container)) fields.plContainer = container;
   if (/^[A-Z0-9][A-Z0-9./_-]+$/i.test(seal)) fields.plSeal = seal;
+  fields.plItems = packingItems(rows);
   if (headerIndex < 0) return fields;
 
   const header = rows[headerIndex];
   const column = (label) => header.findIndex((cell) => label.test(norm(cell)));
-  const total = rows
-    .slice(headerIndex + 1)
-    .find((row) => row.some((cell) => /^(?:total|grand total|tong cong)$/.test(norm(cell))));
+  const total = rows.slice(headerIndex + 1).find(isTotalRow);
   if (!total) return fields;
 
   const cartons = totalNumber(total[column(cartonsHeading)]);

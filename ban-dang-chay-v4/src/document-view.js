@@ -96,6 +96,9 @@ export function renderForm(onEdit) {
   const secondLeg = { etaFirst: 'etaSecond', etd: 'etdConnect' };
   const controls = fields[state.active].map(([key, label]) => {
     const content = esc(value(key));
+    if (key === 'plItems') {
+      return `<div class="field field-wide"><label for="field-${key}">${esc(label)}</label><small id="packing-item-format">Item - Description of goods - Size - Quantity (PCS/SET)</small><textarea id="field-${key}" data-field="${key}" rows="5" aria-describedby="packing-item-format" placeholder="Chưa đọc được">${content}</textarea></div>`;
+    }
     if (
       !content &&
       (key === 'etaSecond' || key === 'etdConnect' || (secondLeg[key] && value(secondLeg[key])))

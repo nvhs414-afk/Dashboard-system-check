@@ -278,3 +278,23 @@ html,body{overflow-x:clip}
 @media print {
   .reveal { opacity: 1; transform: none; }
 }
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid #d3dce6;
+  border-radius: 3px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #102a43;
+  font: inherit;
+}
+.field textarea:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(194, 65, 12, .14);
+}
