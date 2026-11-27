@@ -16,7 +16,7 @@ test('booking reads both terminal fields and dates from an HMM-style notice', ()
     'Cargo Information',
     'PKG-Count : 0 Gross WGT : 10,000.000 KGS Measurement : 0',
     'Final Weight: 7,872.000 KGS',
-    'Estimated Empty Pick-up Date (for reference) : 2026/03/30 11:00',
+    'Empty Pick-up CY : DEMO CONTAINER TERMINAL Estimated Empty Pick-up Date (for reference) : 2026/03/30 11:00',
     'Cargo Cut-off (Terminal Facility) (DC) 2026/04/01 13:00 Cargo Cut-off (Return Facility) 2026/04/02 09:00',
     'SI General Cut-off 2026/03/31 09:00 VGM Cut-off 2026/03/31 10:00',
   ].join('\n');
@@ -34,10 +34,23 @@ test('booking reads both terminal fields and dates from an HMM-style notice', ()
   assert.equal(fields.etdConnect, undefined);
   assert.equal(fields.etaSecond, undefined);
   assert.equal(fields.pickupDate, '2026/03/30 11:00');
+  assert.equal(fields.bookingPickupCy, 'DEMO CONTAINER TERMINAL');
   assert.equal(fields.cyCutoff, '2026/04/01 13:00');
   assert.equal(fields.siCutoff, '2026/03/31 09:00');
   assert.equal(fields.plannedWeight, undefined);
   assert.equal(fields.finalWeight, undefined);
+});
+
+test('Booking keeps pickup and return sites separate and accepts a wrapped pickup site', () => {
+  const fields = extractFields(
+    'booking',
+    'Empty Pickup CY:\nSAMPLE CONTAINER YARD\nFull Return CY: RETURN TERMINAL',
+  );
+  assert.equal(fields.bookingPickupCy, 'SAMPLE CONTAINER YARD');
+  assert.equal(
+    extractFields('booking', 'Empty Pick-up CY:\nFull Return CY: RETURN TERMINAL').bookingPickupCy,
+    undefined,
+  );
 });
 
 test('a two-leg schedule respects explicit labels and matching dates appear once', () => {

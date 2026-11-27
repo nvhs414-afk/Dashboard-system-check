@@ -36,6 +36,7 @@ export const fields = {
     ['etd', 'ETD chặng 1'],
     ['etdConnect', 'ETD chặng 2'],
     ['pickupDate', 'Ngày nhận container rỗng'],
+    ['bookingPickupCy', 'Empty Pick-up CY'],
     ['freeDays', 'Free time (ngày)'],
     ['cyCutoff', 'CY cut-off'],
     ['icdCutoff', 'ICD cut-off'],

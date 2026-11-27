@@ -6,6 +6,19 @@ function dateAfter(text, label) {
   return text.match(new RegExp(`(?:${label})[ \\t]*[:：]?[ \\t]*(${timeStamp})`, 'i'))?.[1] || '';
 }
 
+function emptyPickupCy(text) {
+  const row = text.match(
+    /^[ \t]*Empty[ \t]+Pick[ \t-]*up[ \t]+CY(?:[ \t]*[:：][ \t]*|[ \t]{2,})(?:\r?\n[ \t]*)?([^\r\n]*)/im,
+  )?.[1];
+  return (
+    row
+      ?.split(
+        /(?:^|\s+)(?:Estimated\s+Empty\s+Pick[\s-]*up\s+Date\b|(?:Full\s+Return\s+CY|Address|Facility\s+Code)\s*[:：])/i,
+      )[0]
+      .trim() || ''
+  );
+}
+
 function shippingInformation(text) {
   const start =
     text.match(/^[ \t]*Shipping Information[ \t]*$/im) ||
@@ -129,6 +142,7 @@ export function bookingNoticeFields(text) {
       text,
       String.raw`Estimated Empty Pick[- ]?up Date(?:[ \t]*\([^\r\n)]*\))?`,
     ),
+    bookingPickupCy: emptyPickupCy(text),
     cyCutoff: dateAfter(
       text,
       String.raw`Cargo Cut[- ]?off[ \t]*\(Terminal Facility\)(?:[ \t]*\([^\r\n)]*\))?`,
