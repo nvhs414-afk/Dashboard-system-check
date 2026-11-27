@@ -3,6 +3,15 @@ import test from 'node:test';
 import { extractFields } from '../src/extraction.js';
 import { evaluateShipment } from '../src/checks.js';
 import { extractPackingSheet } from '../src/packing-sheet.js';
+import { formatUsd } from '../src/field-values.js';
+
+test('USD display groups digits in threes without changing the invoice decimals', () => {
+  assert.equal(formatUsd('20922.21'), '20,922.21');
+  assert.equal(formatUsd('2,0922.21'), '20,922.21');
+  assert.equal(formatUsd('20.922,2100'), '20,922.2100');
+  assert.equal(formatUsd('12345678'), '12,345,678');
+  assert.equal(formatUsd(''), '');
+});
 
 test('booking reads both terminal fields and dates from an HMM-style notice', () => {
   const text = [

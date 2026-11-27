@@ -1,7 +1,7 @@
 import { $, toast } from './dom.js';
 import { packingGrossForInvoice, packingUnitForInvoice, state, value } from './session.js';
 import { renderStats } from './document-view.js';
-import { renderResults, resetDraft, renderComparisonTable } from './results-view.js';
+import { renderResults, resetResults, renderDraft, renderComparisonTable } from './results-view.js';
 import { evaluateShipment } from './checks.js';
 
 export function invalidateResult() {
@@ -12,7 +12,8 @@ export function invalidateResult() {
   $('resultContent').hidden = true;
   $('resultEmpty').hidden = false;
   $('resultEmpty').textContent = 'Dữ liệu đã thay đổi. Hãy chạy đối chiếu lại.';
-  resetDraft();
+  resetResults();
+  renderDraft();
   renderComparisonTable();
   renderStats();
 }
@@ -33,6 +34,7 @@ export function runChecks(announce = false) {
   state.draft = draft;
   state.showAll = false;
   renderResults(score, level, radar);
+  renderDraft();
   renderComparisonTable();
   renderStats();
   if (announce) {

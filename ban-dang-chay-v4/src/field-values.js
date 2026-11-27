@@ -17,6 +17,20 @@ export function weightText(value) {
     .replace(/\s*(?:kgm|kgs?)$/i, '');
   return /^\d[\d.,]*$/.test(text) && Number.isFinite(num(text)) ? text : '';
 }
+export function formatUsd(value) {
+  if (!/^-?\d[\d.,]*$/.test(value)) return value;
+  const comma = value.lastIndexOf(',');
+  const dot = value.lastIndexOf('.');
+  const commaIsDecimal =
+    comma > dot && (dot >= 0 || (value.indexOf(',') === comma && value.length - comma !== 4));
+  const decimal = commaIsDecimal
+    ? value.replace(/\./g, '').replace(',', '.')
+    : value.replace(/,/g, '');
+  if (!/^-?\d+(?:\.\d+)?$/.test(decimal)) return value;
+  const [whole, fraction] = decimal.split('.');
+  const grouped = whole.replace(/\B(?=(?:\d{3})+(?!\d))/g, ',');
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+}
 export function norm(s) {
   return String(s ?? '')
     .normalize('NFD')

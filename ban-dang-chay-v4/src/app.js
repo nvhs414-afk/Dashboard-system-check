@@ -2,7 +2,12 @@ import { $, toast } from './dom.js';
 import { mountIcons } from './icons.js';
 import { state, value } from './session.js';
 import { refreshBookingWarnings, renderForm, renderQueue } from './document-view.js';
-import { renderCheckList, renderComparisonTable, resetDraft } from './results-view.js';
+import {
+  renderCheckList,
+  renderComparisonTable,
+  renderDraft,
+  resetResults,
+} from './results-view.js';
 import { runChecks } from './review.js';
 import { queueFiles, scan } from './upload-workflow.js';
 import { mountSiteUi } from './site-ui.tsx';
@@ -19,12 +24,14 @@ function clearAll() {
   state.active = 'invoice';
   state.notice = '';
   state.showAll = false;
+  state.bookingEmail = '';
   $('resultContent').hidden = true;
   $('resultEmpty').hidden = false;
   $('resultEmpty').textContent = 'Chưa có kết quả kiểm tra.';
   $('progressWrap').hidden = true;
   $('files').value = '';
-  resetDraft();
+  resetResults();
+  renderDraft();
   renderComparisonTable();
   renderQueue();
   renderForm(runChecks);
@@ -62,7 +69,7 @@ $('toggleChecksBtn').addEventListener('click', () => {
   renderCheckList();
 });
 $('clearBtn').addEventListener('click', () => {
-  if (!state.queue.length && !Object.values(state.form).some(Boolean)) {
+  if (!state.queue.length && !state.bookingEmail && !Object.values(state.form).some(Boolean)) {
     toast('Không có dữ liệu để xóa.');
     return;
   }
@@ -85,7 +92,8 @@ $('downloadBtn').addEventListener('click', () => {
 $('printBtn').addEventListener('click', () => {
   if (state.draft) window.print();
 });
-resetDraft();
+resetResults();
+renderDraft();
 renderComparisonTable();
 renderQueue();
 renderForm(runChecks);

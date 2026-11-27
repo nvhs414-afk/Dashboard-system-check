@@ -1,17 +1,7 @@
 import { $, esc } from './dom.js';
 import { state } from './session.js';
 
-export function resetDraft() {
-  $('draftFields').innerHTML = [
-    ['Số Invoice', '—'],
-    ['Người xuất khẩu', '—'],
-    ['Mã HS', '—'],
-    ['Số lượng', '—'],
-  ]
-    .map(([k, v]) => `<div class="draft-field"><span>${k}</span><b>${v}</b></div>`)
-    .join('');
-  $('downloadBtn').disabled = true;
-  $('printBtn').disabled = true;
+export function resetResults() {
   $('scoreValue').textContent = '—';
   $('riskBadge').textContent = 'Chưa chạy';
   $('riskBadge').className = 'badge neutral';
@@ -74,23 +64,27 @@ export function renderResults(score, level, radar) {
         `<div class="radar-line ${x.kind}"><strong>${esc(x.title)}</strong><p>${esc(x.detail)}</p></div>`,
     )
     .join('');
+}
+
+export function renderDraft() {
   const d = state.draft,
     items = [
-      ['Số Invoice', d.hoaDon],
-      ['Người xuất khẩu', d.nguoiXuatKhau],
-      ['Người nhập khẩu', d.nguoiNhapKhau],
-      ['Tên hàng', d.tenHang],
-      ['Mã HS', d.maHS],
-      ['Số lượng', d.soLuong],
-      ['Gross Weight', d.grossWeightKg ? d.grossWeightKg + ' kg' : ''],
-      ['Tiêu chí xuất xứ', d.tieuChiXuatXu],
+      ['Số Invoice', d?.hoaDon],
+      ['Người xuất khẩu', d?.nguoiXuatKhau],
+      ['Người nhập khẩu', d?.nguoiNhapKhau],
+      ['Tên hàng', d?.tenHang],
+      ['Mã HS', d?.maHS],
+      ['Số lượng', d?.soLuong],
+      ['Gross Weight', d?.grossWeightKg ? d.grossWeightKg + ' kg' : ''],
+      ['Tiêu chí xuất xứ', d?.tieuChiXuatXu],
     ];
+  const missing = d ? 'Chưa xác định' : '—';
   $('draftFields').innerHTML = items
     .map(
       ([k, v]) =>
-        `<div class="draft-field"><span>${esc(k)}</span><b>${esc(v || 'Chưa xác định')}</b></div>`,
+        `<div class="draft-field"><span>${esc(k)}</span><b>${esc(v || missing)}</b></div>`,
     )
     .join('');
-  $('downloadBtn').disabled = false;
-  $('printBtn').disabled = false;
+  $('downloadBtn').disabled = !d;
+  $('printBtn').disabled = !d;
 }

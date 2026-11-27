@@ -2,6 +2,7 @@ import { $, esc } from './dom.js';
 import { bookingDeadlineWarnings, bookingWarningLabels } from './booking-deadlines.js';
 import { fields, groups, required, types } from './document-fields.js';
 import { freeTimeFields } from './booking-free-time.js';
+import { formatUsd } from './field-values.js';
 import {
   billIdentifiersForPacking,
   bookingFreeTimeEvidence,
@@ -98,7 +99,8 @@ export function renderForm(onEdit) {
   const booking = state.active === 'booking';
   const secondLeg = { etaFirst: 'etaSecond', etd: 'etdConnect' };
   const controls = fields[state.active].flatMap(([key, label]) => {
-    const content = esc(value(key));
+    const raw = value(key);
+    const content = esc(key === 'invoiceValue' ? formatUsd(raw) : raw);
     if (key === 'plItems') {
       return `<div class="field field-wide"><label for="field-${key}">${esc(label)}</label><small id="packing-item-format">Item - Description of goods - Size - Quantity (PCS/SET)</small><textarea id="field-${key}" data-field="${key}" rows="5" aria-describedby="packing-item-format" placeholder="Chưa đọc được">${content}</textarea></div>`;
     }
@@ -129,6 +131,18 @@ export function renderForm(onEdit) {
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';
       }),
     );
+  $('field-invoiceValue')?.addEventListener('blur', (event) => {
+    const input = event.currentTarget;
+    input.value = formatUsd(input.value.trim());
+    input.title = input.value;
+  });
+  if (booking) {
+    $('bookingEmail').addEventListener('input', (event) => {
+      state.bookingEmail = event.currentTarget.value.trim();
+      refreshBookingWarnings();
+    });
+    $('bookingEmailDraft').addEventListener('click', openBookingEmailDraft);
+  }
   const sources = state.queue.filter((f) => f.type === state.active && f.status === 'Đã nhận diện');
   $('dataOrigin').textContent = sources.length
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
@@ -150,6 +164,13 @@ function renderBookingWarningsPanel() {
   return `<section class="field-wide booking-warnings" aria-label="Cảnh báo DEM và DET">
     <div id="bookingWarnings" class="booking-warning-grid" aria-live="polite"></div>
     <p class="booking-warning-note">Ước tính cho hàng xuất theo ngày lịch, tính ngày bắt đầu là ngày 1, theo giờ Việt Nam. Cảnh báo cập nhật khi mở trang.</p>
+    <div class="booking-email">
+      <div class="booking-email-controls">
+        <div class="field"><label for="bookingEmail">Email nhận cảnh báo</label><input id="bookingEmail" type="email" required autocomplete="email" aria-describedby="bookingEmailPreview" placeholder="ten@gmail.com" value="${esc(state.bookingEmail)}"></div>
+        <button id="bookingEmailDraft" type="button" class="button primary" disabled>Soạn trong Gmail</button>
+      </div>
+      <p id="bookingEmailPreview" class="booking-warning-note" role="status"></p>
+    </div>
     <details><summary>Mốc thực tế dùng để đối chiếu</summary><div class="booking-warning-grid">${controls.join('')}</div></details>
   </section>`;
 }
@@ -158,13 +179,39 @@ export function refreshBookingWarnings() {
   const panel = $('bookingWarnings');
   if (!panel) return;
   const warnings = bookingDeadlineWarnings(value, bookingFreeTimeEvidence());
-  const markup = Object.entries(warnings)
-    .map(([key, warning]) => {
-      const { status, message, detail, deadline, reminder } = warning;
-      return `<article class="booking-warning" data-warning="${key}" data-status="${status}"><h4>${bookingWarningLabels[key]}</h4><strong>${esc(message)}</strong>${deadline ? `<p>Hạn dự kiến <b>${esc(deadline)}</b><br>Mốc nhắc trước 24 giờ <b>${esc(reminder)}</b></p>` : ''}<p>${esc(detail)}</p></article>`;
+  const markup = Object.entries(bookingWarningLabels)
+    .map(([key, label]) => {
+      const { status, message, detail, deadline, reminder } = warnings[key];
+      return `<article class="booking-warning" data-warning="${key}" data-status="${status}"><h4>${label}</h4><strong>${esc(message)}</strong>${deadline ? `<p>Hạn dự kiến <b>${esc(deadline)}</b><br>Mốc nhắc trước 24 giờ <b>${esc(reminder)}</b></p>` : ''}<p>${esc(detail)}</p></article>`;
     })
     .join('');
   if (panel.innerHTML !== markup) panel.innerHTML = markup;
+  const { emailReminders } = warnings;
+  const email = $('bookingEmail');
+  const preview = $('bookingEmailPreview');
+  const text =
+    email.value && !email.validity.valid
+      ? 'Kiểm tra địa chỉ email.'
+      : emailReminders.join('\n') ||
+        'Có thể soạn thư trong 24 giờ trước hạn và trong ngày đến hạn DEM, DET hoặc ETD.';
+  if (preview.textContent !== text) preview.textContent = text;
+  $('bookingEmailDraft').disabled = !emailReminders.length || !email.validity.valid;
+}
+
+function openBookingEmailDraft() {
+  const email = $('bookingEmail');
+  const { emailReminders } = bookingDeadlineWarnings(value, bookingFreeTimeEvidence());
+  if (!email.validity.valid || !emailReminders.length) return;
+  const booking = value('bookingNo');
+  const url = new URL('https://mail.google.com/mail/');
+  url.search = new URLSearchParams({
+    view: 'cm',
+    fs: '1',
+    to: email.value.trim(),
+    su: `CẢNH BÁO HẠN BOOKING${booking ? ' ' + booking : ''}`,
+    body: emailReminders.join('\r\n'),
+  }).toString();
+  window.open(url.href, '_blank', 'noopener,noreferrer');
 }
 
 function renderBookingFreeTimeEvidence() {

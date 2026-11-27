@@ -109,3 +109,36 @@ test('Booking extracts operational dates only from their corresponding labels', 
   assert.equal(values.bookingGateInActual, '2026/04/02 08:15');
   assert.equal(values.bookingAtd, '2026/04/04 10:00');
 });
+
+test('email reminder lines cover ETD, DET and DEM from 24 hours before through their due day', () => {
+  const etdReminder = 'CẢNH BÁO CÒN 1 NGÀY TỚI NGÀY 03/04/2026 12:30 (ETD CHẶNG 1)';
+  const detReminder = 'CẢNH BÁO CÒN 1 NGÀY TỚI NGÀY 05/04/2026 00:00 (HẠN DET)';
+  const demReminder = 'CẢNH BÁO CÒN 1 NGÀY TỚI NGÀY 08/04/2026 00:00 (HẠN DEM)';
+  assert.deepEqual(warnings(lot, '2026-04-02T12:29:00+07:00').emailReminders, []);
+  assert.deepEqual(warnings(lot, '2026-04-02T12:30:00+07:00').emailReminders, [etdReminder]);
+  assert.deepEqual(warnings(lot, '2026-04-03T15:30:00+07:00').emailReminders, [
+    etdReminder.replace('1 NGÀY', '0 NGÀY'),
+  ]);
+  assert.deepEqual(warnings(lot, '2026-04-04T10:00:00+07:00').emailReminders, [detReminder]);
+  assert.deepEqual(warnings(lot, '2026-04-07T10:00:00+07:00').emailReminders, [demReminder]);
+  assert.deepEqual(warnings(lot, '2026-04-09T00:00:00+07:00').emailReminders, []);
+});
+
+test('email omits completed milestones and groups simultaneous or combined limits', () => {
+  const simultaneous = warnings({ ...lot, etd: '2026/04/05' }, '2026-04-04T10:00:00+07:00');
+  assert.equal(simultaneous.emailReminders.length, 2);
+  const arrived = {
+    ...lot,
+    bookingGateInActual: '2026/04/01 12:00',
+    bookingAtd: '2026/04/03 12:30',
+  };
+  assert.deepEqual(warnings(arrived, '2026-04-04T10:00:00+07:00').emailReminders, []);
+  assert.deepEqual(warnings(arrived, '2026-04-07T10:00:00+07:00').emailReminders, []);
+  const combined = warnings(
+    { ...lot, detFree: '', demFree: '', freeDays: '6' },
+    '2026-04-04T10:00:00+07:00',
+  );
+  assert.deepEqual(combined.emailReminders, [
+    'CẢNH BÁO CÒN 1 NGÀY TỚI NGÀY 05/04/2026 00:00 (HẠN DEM/DET GỘP)',
+  ]);
+});
