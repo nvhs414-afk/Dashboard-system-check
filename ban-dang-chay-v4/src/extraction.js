@@ -68,7 +68,7 @@ function extract(type,text,rows){
  if(type==='packing'&&rows){
   for(const [key,value] of Object.entries(extractPackingSheet(rows)))if(value)o[key]=value;
  }
- if(type==='booking')o={bookingNo:ref(['booking\\s*(?:no\\.?|number|#)','số\\s*booking','so\\s*booking']),pickupDate:field(['empty\\s*pick.?up','ngày\\s*nhận\\s*container\\s*rỗng'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),freeDays:weight(['free\\s*time','số\\s*ngày\\s*miễn\\s*phí']),cyCutoff:field(['cy\\s*cut.?off']),icdCutoff:field(['icd\\s*cut.?off']),siCutoff:field(['si\\s*cut.?off']),bookingPol:field(['port\\s*of\\s*loading','cảng\\s*xếp\\s*hàng','pol'],party),bookingContainer:ref(['container(?:\\s*(?:no\\.?|number))?']),bookingSeal:field(['seal(?:\\s*(?:no\\.?|number))?'],s=>/^[A-Za-z0-9./_-]{2,70}$/i.test(s))};
+ if(type==='booking')o={bookingNo:ref(['booking\\s*(?:no\\.?|number|#)','số\\s*booking','so\\s*booking']),pickupDate:field(['empty\\s*pick.?up','ngày\\s*nhận\\s*container\\s*rỗng'],s=>/\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(s)),freeDays:weight(['free\\s*time','số\\s*ngày\\s*miễn\\s*phí']),cyCutoff:field(['cy\\s*cut.?off']),icdCutoff:field(['icd\\s*cut.?off']),siCutoff:field(['si\\s*cut.?off']),bookingPol:field(['port\\s*of\\s*loading','cảng\\s*xếp\\s*hàng','pol'],party)};
  if(type==='booking'){
   o.bookingShipper=field(['shipper','exporter'],party);
   o.bookingConsignee=field(['consignee','cnee'],party)||

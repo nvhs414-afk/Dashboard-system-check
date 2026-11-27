@@ -70,16 +70,11 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
       '',
       samePort,
     );
-    pair('Booking ↔ B/L · Container', 'bookingContainer', 'blContainer');
-    pair('Booking ↔ B/L · Seal', 'bookingSeal', 'blSeal');
   }
-  if (has('booking') && has('packing'))
-    pair('Booking ↔ PL · Container', 'bookingContainer', 'plContainer');
   if (has('packing') && has('bl'))
     pair('PL ↔ B/L · Gross Weight', 'plGross', 'blGross', 'kg', true);
   let seals = [
     ['PL', value('plSeal')],
-    ['Booking', value('bookingSeal')],
     ['B/L', value('blSeal')],
   ].filter(([, v]) => v);
   if (seals.some(([, v]) => norm(v) === 'na' || norm(v) === 'n a'))

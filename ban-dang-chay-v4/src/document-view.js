@@ -1,6 +1,12 @@
 import { $, esc } from './dom.js';
 import { fields, groups, required, types } from './document-fields.js';
-import { packingGrossForInvoice, packingUnitForInvoice, state, value } from './session.js';
+import {
+  billIdentifiersForPacking,
+  packingGrossForInvoice,
+  packingUnitForInvoice,
+  state,
+  value,
+} from './session.js';
 
 export function renderStats() {
   $('statDocs').textContent = new Set(
@@ -107,7 +113,7 @@ export function renderForm(onEdit) {
         state.form[input.dataset.field] = input.value;
         state.manual.add(input.dataset.field);
         input.title = input.value;
-        if (state.active === 'invoice') renderSupplementalInvoiceFields();
+        renderSupplementalFields();
         if (state.queue.some((f) => f.status === 'Đã nhận diện')) onEdit();
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';
       }),
@@ -116,19 +122,31 @@ export function renderForm(onEdit) {
   $('dataOrigin').textContent = sources.length
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
     : 'Chưa trích được trường nhóm này';
-  if (state.active === 'invoice') renderSupplementalInvoiceFields();
+  renderSupplementalFields();
 }
 
-function renderSupplementalInvoiceFields() {
-  const packingValues = [
-    ['invoiceGross', 'Gross Weight (kg)', packingGrossForInvoice()],
-    ['invoiceUnit', 'Đơn vị', packingUnitForInvoice()],
-  ];
-  for (const [field, caption, packingValue] of packingValues) {
+function renderSupplementalFields() {
+  let entries, source;
+  if (state.active === 'invoice') {
+    entries = [
+      ['invoiceGross', 'Gross Weight (kg)', packingGrossForInvoice()],
+      ['invoiceUnit', 'Đơn vị', packingUnitForInvoice()],
+    ];
+    source = 'Packing List';
+  } else if (state.active === 'packing') {
+    const { plContainer, plSeal } = billIdentifiersForPacking();
+    entries = [
+      ['plContainer', 'Container', plContainer],
+      ['plSeal', 'Seal', plSeal],
+    ];
+    source = 'B/L';
+  } else return;
+
+  for (const [field, caption, supplementalValue] of entries) {
     const input = $('field-' + field);
-    input.value = state.manual.has(field) ? state.form[field] : packingValue || value(field);
+    input.value = state.manual.has(field) ? state.form[field] : supplementalValue || value(field);
     input.title = input.value;
     const label = $('formPanel').querySelector(`label[for="field-${field}"]`);
-    label.textContent = packingValue ? caption + ' · Packing List' : caption;
+    label.textContent = supplementalValue ? caption + ' · ' + source : caption;
   }
 }

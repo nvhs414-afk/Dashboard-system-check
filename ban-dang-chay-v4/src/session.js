@@ -48,3 +48,29 @@ export function packingUnitForInvoice() {
   );
   return units.size === 1 && units.has('PCS/SET') ? 'PCS/SET' : '';
 }
+
+export function billIdentifiersForPacking() {
+  const recognized = state.queue.filter((item) => item.status === 'Đã nhận diện');
+  if (!recognized.some((item) => item.type === 'packing')) return {};
+  const bills = recognized.filter((item) => item.type === 'bl');
+  if (!bills.length) return {};
+
+  for (const field of ['blContainer', 'blSeal']) {
+    const values = new Set(
+      bills.map((item) => item.fields[field]?.trim().toUpperCase()).filter(Boolean),
+    );
+    if (values.size > 1) return {};
+  }
+  if (
+    bills.length > 1 &&
+    value('blContainer') &&
+    value('blSeal') &&
+    !bills.some(({ fields }) => fields.blContainer && fields.blSeal)
+  )
+    return {};
+
+  return {
+    plContainer: state.manual.has('plContainer') ? '' : value('blContainer'),
+    plSeal: state.manual.has('plSeal') ? '' : value('blSeal'),
+  };
+}

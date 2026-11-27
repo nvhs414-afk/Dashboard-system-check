@@ -40,8 +40,6 @@ export const fields = {
     ['cyCutoff', 'CY cut-off'],
     ['icdCutoff', 'ICD cut-off'],
     ['siCutoff', 'SI cut-off'],
-    ['bookingContainer', 'Container'],
-    ['bookingSeal', 'Seal'],
   ],
   bl: [
     ['blExporter', 'Shipper'],
