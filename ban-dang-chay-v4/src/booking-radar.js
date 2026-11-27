@@ -55,7 +55,7 @@ export function makeRadar(value) {
       status: conflict ? 'fail' : 'pass',
       detail: `ETA ${formatDate(v('etaFirst'))} + 1 ngày so với ETD nối ${formatDate(v('etdConnect'))}. ${conflict ? 'Xung đột, khóa duyệt Internal Booking.' : 'Đủ thời gian đệm.'}`,
     });
-  } else
+  } else if (v('etdConnect') || v('etaSecond'))
     lines.push({
       title: 'Lịch tàu nối',
       detail: 'Thiếu ETA chặng 1 hoặc ETD nối; chưa thể đánh giá.',

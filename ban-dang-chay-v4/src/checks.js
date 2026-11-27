@@ -54,7 +54,13 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
   }
   if (has('booking') && has('bl')) {
     compare('Booking ↔ B/L · POL', value('bookingPol'), value('blPol'), '', samePort);
-    compare('Booking ↔ B/L · POD', value('bookingPod'), value('blPod'), '', samePort);
+    compare(
+      'Booking ↔ B/L · POD',
+      value('bookingDischarge') || value('bookingPod'),
+      value('blPod'),
+      '',
+      samePort,
+    );
     pair('Booking ↔ B/L · Container', 'bookingContainer', 'blContainer');
     pair('Booking ↔ B/L · Seal', 'bookingSeal', 'blSeal');
   }

@@ -86,14 +86,26 @@ export function renderForm(onEdit) {
       renderForm(onEdit);
     }),
   );
+  const booking = state.active === 'booking';
+  const hasSecondLeg = booking && Boolean(value('etdConnect') || value('etaSecond'));
+  const controls = fields[state.active].map(([key, label]) => {
+    const content = esc(value(key));
+    if (key === 'etdConnect' || key === 'etaSecond') {
+      if (!hasSecondLeg) return '';
+      if (!content) return '<div aria-hidden="true"></div>';
+    }
+    const className = key === 'bookingNo' ? 'field booking-number' : 'field';
+    return `<div class="${className}"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="Chưa đọc được"></div>`;
+  });
   $('formPanel').innerHTML =
-    `<div class="field-grid">${fields[state.active].map(([key, label]) => `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${esc(value(key))}" autocomplete="off" placeholder="Chưa đọc được"></div>`).join('')}</div>`;
+    `<div class="field-grid${booking ? ' booking-field-grid' : ''}">${controls.join('')}</div>`;
   $('formPanel')
     .querySelectorAll('[data-field]')
     .forEach((input) =>
       input.addEventListener('input', () => {
         state.form[input.dataset.field] = input.value;
         state.manual.add(input.dataset.field);
+        input.title = input.value;
         if (state.active === 'invoice') renderSupplementalInvoiceFields();
         if (state.queue.some((f) => f.status === 'Đã nhận diện')) onEdit();
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';

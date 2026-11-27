@@ -6,24 +6,68 @@ import { extractPackingSheet } from '../src/packing-sheet.js';
 
 test('booking reads both terminal fields and dates from an HMM-style notice', () => {
   const text = [
+    'Shipping Information',
+    'Place of Receipt : SAMPLE RECEIPT Trans Mode : Barge (Origin)',
     'Port of Loading : SAMPLE ORIGIN, TML : SAMPLE TERMINAL Facility Code : XX000000',
     'ETB : 2026/04/02 18:30 ETD : 2026/04/03 12:30',
     '2nd Vessel/Voyage : T/S Port : Call Sign :',
     'Port of Discharging : SAMPLE CITY, CA(USSMP) TML : SAMPLE PIER ETA : 2026/04/26 05:00',
+    'Place of Delivery : SAMPLE DELIVERY TML : SAMPLE DEPOT ETA : 26/04/2026 5:00',
+    'Cargo Information',
     'PKG-Count : 0 Gross WGT : 10,000.000 KGS Measurement : 0',
     'Estimated Empty Pick-up Date (for reference) : 2026/03/30 11:00',
     'Cargo Cut-off (Terminal Facility) (DC) 2026/04/01 13:00 Cargo Cut-off (Return Facility) 2026/04/02 09:00',
     'SI General Cut-off 2026/03/31 09:00 VGM Cut-off 2026/03/31 10:00',
   ].join('\n');
   const fields = extractFields('booking', text);
-  assert.equal(fields.bookingPol, 'SAMPLE ORIGIN · SAMPLE TERMINAL');
-  assert.equal(fields.bookingPod, 'SAMPLE CITY, CA (USSMP) · SAMPLE PIER');
+  assert.equal(fields.bookingReceipt, 'SAMPLE RECEIPT');
+  assert.equal(fields.bookingReceiptTml, undefined);
+  assert.equal(fields.bookingPol, 'SAMPLE ORIGIN');
+  assert.equal(fields.bookingPolTml, 'SAMPLE TERMINAL');
+  assert.equal(fields.bookingDischarge, 'SAMPLE CITY, CA (USSMP)');
+  assert.equal(fields.bookingDischargeTml, 'SAMPLE PIER');
+  assert.equal(fields.bookingPod, 'SAMPLE DELIVERY');
+  assert.equal(fields.bookingPodTml, 'SAMPLE DEPOT');
   assert.equal(fields.etd, '2026/04/03 12:30');
   assert.equal(fields.etaFirst, '2026/04/26 05:00');
+  assert.equal(fields.etdConnect, undefined);
+  assert.equal(fields.etaSecond, undefined);
   assert.equal(fields.pickupDate, '2026/03/30 11:00');
   assert.equal(fields.cyCutoff, '2026/04/01 13:00');
   assert.equal(fields.siCutoff, '2026/03/31 09:00');
   assert.equal(fields.plannedWeight, '10,000.000');
+});
+
+test('a two-leg schedule respects explicit labels and matching dates appear once', () => {
+  const text = [
+    'Booking Information',
+    'ETD chặng 2: 2026/04/12 16:00',
+    'ETD chặng 1: 2026/04/12 08:00',
+    'ETA Leg 1: 2026/04/12 12:15',
+    'ETA Leg 2: 2026/04/26 05:00',
+    'Place of Receipt: DEMO ORIGIN',
+    'TML: DEMO ORIGIN TERMINAL Trans Mode: Truck',
+  ].join('\n');
+  const fields = extractFields('booking', text);
+  assert.equal(fields.etd, '2026/04/12 08:00');
+  assert.equal(fields.etdConnect, '2026/04/12 16:00');
+  assert.equal(fields.etaFirst, '2026/04/12 12:15');
+  assert.equal(fields.etaSecond, '2026/04/26 05:00');
+  assert.equal(fields.bookingReceiptTml, 'DEMO ORIGIN TERMINAL');
+  const duplicate = text.replace('2026/04/26 05:00', '12-04-2026 12:15');
+  assert.equal(extractFields('booking', duplicate).etaSecond, undefined);
+});
+
+test('a connecting sailing does not use the destination ETA as the first arrival', () => {
+  const text = [
+    'Shipping Information',
+    '2nd Vessel/Voyage: SAMPLE 05 T/S Port: SAMPLE TRANSFER',
+    'Port of Discharging: SAMPLE CITY ETA: 2026/04/26 05:00',
+    'Place of Delivery: SAMPLE DEPOT ETA: 2026/04/27 09:00',
+  ].join('\n');
+  const fields = extractFields('booking', text);
+  assert.equal(fields.etaFirst, undefined);
+  assert.equal(fields.etaSecond, '2026/04/26 05:00');
 });
 
 test('weight checks use the shared invoice value and ignore formatting differences', () => {
@@ -42,7 +86,8 @@ test('weight checks use the shared invoice value and ignore formatting differenc
     blGross: '1,234.500',
     bookingPol: 'SAMPLE ORIGIN · SAMPLE TERMINAL',
     blPol: 'SAMPLE ORIGIN, VIETNAM',
-    bookingPod: 'SAMPLE CITY, CA (USSMP) · SAMPLE PIER',
+    bookingDischarge: 'SAMPLE CITY, CA (USSMP)',
+    bookingPod: 'INLAND DEPOT',
     blPod: 'SAMPLE CITY, CA',
   };
   const value = (key) => fields[key] || '';
