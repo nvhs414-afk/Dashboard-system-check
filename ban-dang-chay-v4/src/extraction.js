@@ -21,7 +21,7 @@ export function sourceType(name,text=''){
  if(/(?:^| )(?:dinh muc|dm\d*|material consumption)(?: |$)/.test(file))return 'other';
  for(const [type,re] of names)if(re.test(file))return type;
  if(text.slice(0,4000).split(/\r?\n/).some(line=>/^(?:to khai (?:hai quan|hang hoa)|customs declaration|danh sach giam sat|certificate of origin|chung nhan xuat xu)\b/.test(plain(line))))return 'other';
- if(text.slice(0,4000).split(/\r?\n/).some(line=>/^booking notice$/i.test(line.trim())))return 'booking';
+ if(text.slice(0,4000).split(/\r?\n/).some(line=>/^booking\s+(?:notice|note|amendment|confirmation)$/i.test(line.trim())))return 'booking';
  const titles=[['bl',/bill of lading|sea waybill|van don duong bien/],['packing',/packing list|packing details|phieu dong goi/],['invoice',/commercial invoice|hoa don thuong mai/],['booking',/booking confirmation|xac nhan dat cho/]];
  for(const [type,re] of titles)if(re.test(head))return type;
  if(text.slice(0,4000).split(/\r?\n/).some(line=>/^invoice$/i.test(line.trim())))return 'invoice';

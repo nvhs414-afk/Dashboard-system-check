@@ -83,3 +83,24 @@ export function billIdentifiersForPacking() {
     plSeal: state.manual.has('plSeal') ? '' : value('blSeal'),
   };
 }
+
+export function billPartiesForBooking() {
+  const booking = value('bookingNo').toUpperCase();
+  if (!booking) return {};
+  const bills = state.queue.filter(
+    (item) =>
+      item.type === 'bl' &&
+      item.status === 'Đã nhận diện' &&
+      item.fields.blBookingNo?.toUpperCase() === booking,
+  );
+  const party = (field) => {
+    const names = new Set(bills.map((item) => item.fields[field]).filter(Boolean));
+    return names.size === 1 ? [...names][0] : '';
+  };
+  return {
+    bookingShipper:
+      value('bookingShipper') || state.manual.has('bookingShipper') ? '' : party('blExporter'),
+    bookingConsignee:
+      value('bookingConsignee') || state.manual.has('bookingConsignee') ? '' : party('blImporter'),
+  };
+}

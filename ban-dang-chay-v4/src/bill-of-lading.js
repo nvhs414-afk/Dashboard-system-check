@@ -1,4 +1,5 @@
 import { weightText } from './field-values.js';
+import { textBlocks, textRows } from './pdf-layout.js';
 
 const portLabels = {
   blPol: /^(?:port of loading|pol)$/i,
@@ -7,38 +8,6 @@ const portLabels = {
 const otherLabel =
   /^(?:place of (?:receipt|delivery)|final destination|for transshipment|onward inland routing|pre-carriage|ocean vessel|container no\.?|description of|gross weight|measurement|shipper|consignee|notify party)\b/i;
 const headingText = (text) => text.replace(/[\s:*]+$/, '');
-
-function textRows(items) {
-  const spans = items
-    .filter((item) => item.str?.trim() && item.transform)
-    .map(({ str, transform: [, , , , x, y], width, height }) => ({
-      text: str.trim(),
-      x,
-      y,
-      end: x + width,
-      height,
-    }))
-    .sort((a, b) => b.y - a.y || a.x - b.x);
-  const rows = [];
-  for (const span of spans) {
-    const row = rows.at(-1);
-    if (row && row.y - span.y <= 2) row.spans.push(span);
-    else rows.push({ y: span.y, spans: [span] });
-  }
-  return rows;
-}
-
-function textBlocks(spans) {
-  const blocks = [];
-  for (const span of spans.sort((a, b) => a.x - b.x)) {
-    const previous = blocks.at(-1);
-    if (previous && span.x - previous.end <= Math.max(5, span.height, previous.height)) {
-      previous.text += ' ' + span.text;
-      previous.end = Math.max(previous.end, span.end);
-    } else blocks.push({ ...span });
-  }
-  return blocks;
-}
 
 export function extractContainerSeal(text) {
   const container = /\b([A-Z]{3}[UJZ][ \t]*\d{7})[ \t]*\/[ \t]*([A-Z0-9][A-Z0-9.-]{2,})\b/i;
@@ -50,6 +19,7 @@ export function extractContainerSeal(text) {
 function boxValue(rows, index, column, inset = 8) {
   const row = rows[index];
   const heading = row.blocks[column];
+  let headingContinues = /\([^)]*$/.test(heading.text);
   const right = row.blocks[column + 1]?.x ?? Infinity;
   const maxDrop = Math.max(16, heading.height * 3);
   for (let line = index + 1; line < rows.length; line++) {
@@ -60,6 +30,10 @@ function boxValue(rows, index, column, inset = 8) {
       (block) => Math.abs(block.x - heading.x) <= inset && block.x < right,
     );
     if (!candidate) continue;
+    if (headingContinues && !otherLabel.test(candidate.text)) {
+      headingContinues = !candidate.text.includes(')');
+      continue;
+    }
     if (
       !otherLabel.test(candidate.text) &&
       !Object.values(portLabels).some((re) => re.test(headingText(candidate.text))) &&
@@ -69,6 +43,26 @@ function boxValue(rows, index, column, inset = 8) {
     }
     break;
   }
+}
+
+function bookingReference(rows) {
+  const label = /^Booking (?:No\.?|Number)\s*:?\s*(.*)$/i;
+  const number = /^[A-Z0-9-]*\d[A-Z0-9-]*$/i;
+  for (const [index, row] of rows.entries()) {
+    for (const block of row.blocks) {
+      const match = block.text.match(label);
+      if (!match) continue;
+      if (number.test(match[1])) return match[1];
+      if (match[1]) continue;
+      for (const next of rows.slice(index + 1)) {
+        if (row.y - next.y > 18) break;
+        const candidate = next.blocks.find(({ x }) => Math.abs(x - block.x) <= 10);
+        if (candidate && number.test(candidate.text)) return candidate.text;
+        if (candidate) break;
+      }
+    }
+  }
+  return '';
 }
 
 function grossWeight(rows, index, column) {
@@ -139,11 +133,11 @@ function partyQualifier(rows, value) {
 }
 
 export function extractBillOfLadingFields(items) {
-  const rows = textRows(items).map(({ y, spans }) => ({ y, blocks: textBlocks(spans) }));
+  const rows = textRows(items).map(({ y, spans }) => ({ y, blocks: textBlocks(spans, true) }));
   const fields = {};
   const partyLabels = {
     blExporter: /^(?:shipper(?:\s*\/\s*exporter)?|exporter)(?:\s*\([^)]*\))?$/i,
-    blImporter: /^consignee(?:\s*\([^)]*\))?$/i,
+    blImporter: /^consignee(?:\s*\([^)]*\)?)?$/i,
   };
   for (const [field, label] of Object.entries({ ...portLabels, ...partyLabels })) {
     for (const [index, row] of rows.entries()) {
@@ -170,6 +164,8 @@ export function extractBillOfLadingFields(items) {
   }
   const weight = fields.blGross || alignedKilograms(rows);
   if (weight) fields.blGross = weight;
+  const reference = bookingReference(rows);
+  if (reference) fields.blBookingNo = reference;
   const lines = rows.map((row) => row.blocks.map(({ text }) => text).join(' ')).join('\n');
   return { ...fields, ...extractContainerSeal(lines) };
 }

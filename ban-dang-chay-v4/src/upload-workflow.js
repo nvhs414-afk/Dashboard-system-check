@@ -14,6 +14,7 @@ import {
 } from './readers.js';
 import { sourceType, extractFields, isOutOfScopeFilename } from './extraction.js';
 import { extractBillOfLadingFields } from './bill-of-lading.js';
+import { readMaerskBooking } from './maersk-booking.js';
 
 export function queueFiles(files) {
   if (state.scanning) {
@@ -131,8 +132,12 @@ async function readQueueItem(item) {
           onPdfPage: (items) => pdfPages.push(items),
           onOcrPage: (items) => ocrPages.push(items),
         });
+  const maersk = readMaerskBooking(pdfPages) || readMaerskBooking(ocrPages);
+  if (maersk) text = maersk.text;
   item.raw = text;
-  item.type = sourceType(item.kind === 'sheet' ? item.sheetName : item.file.name, text);
+  item.type = maersk
+    ? 'booking'
+    : sourceType(item.kind === 'sheet' ? item.sheetName : item.file.name, text);
   if (!text.trim()) throw Error('Không đọc được nội dung; kiểm tra chất lượng tệp hoặc nhập tay.');
   if (!groups.includes(item.type)) {
     item.status = 'Bỏ qua';
@@ -141,7 +146,7 @@ async function readQueueItem(item) {
     const bill = item.type === 'bl';
     const positionedFields = bill
       ? { ...billFieldsFromPages(ocrPages), ...billFieldsFromPages(pdfPages) }
-      : {};
+      : maersk?.fields || {};
     item.fields = { ...extractFields(item.type, text, item.sheetRows), ...positionedFields };
     const needsOcr = bill
       ? ['blExporter', 'blImporter', 'blPol', 'blPod', 'blContainer', 'blSeal', 'blGross'].some(

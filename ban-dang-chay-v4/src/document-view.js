@@ -5,6 +5,7 @@ import { freeTimeFields } from './booking-free-time.js';
 import { formatUsd } from './field-values.js';
 import {
   billIdentifiersForPacking,
+  billPartiesForBooking,
   bookingFreeTimeEvidence,
   packingGrossForInvoice,
   packingUnitForInvoice,
@@ -189,7 +190,16 @@ function renderBookingFreeTimeEvidence() {
   const tariff = evidence.some(({ field, applicable }) => field === 'tariff' && applicable)
     ? '<p>Booking dẫn chiếu biểu phí hãng tàu. Cần tra biểu phí để xác nhận số ngày.</p>'
     : '';
-  return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET</summary>${tariff}<ul>${items.join('')}</ul></details>`;
+  const standardDet = new Set(
+    evidence
+      .filter(({ field, applicable }) => field === 'standardDet' && applicable)
+      .map(({ value }) => value),
+  );
+  const standardNote =
+    standardDet.size === 1
+      ? ` · DET tiêu chuẩn ${esc([...standardDet][0])} ngày, cần xác nhận theo hợp đồng`
+      : '';
+  return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET${standardNote}</summary>${tariff}<ul>${items.join('')}</ul></details>`;
 }
 
 function renderSupplementalFields() {
@@ -205,6 +215,13 @@ function renderSupplementalFields() {
     entries = [
       ['plContainer', 'Container', plContainer],
       ['plSeal', 'Seal', plSeal],
+    ];
+    source = 'B/L';
+  } else if (state.active === 'booking') {
+    const { bookingShipper, bookingConsignee } = billPartiesForBooking();
+    entries = [
+      ['bookingShipper', 'Shipper', bookingShipper],
+      ['bookingConsignee', 'Consignee', bookingConsignee],
     ];
     source = 'B/L';
   } else return;

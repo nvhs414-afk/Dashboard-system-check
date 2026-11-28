@@ -98,7 +98,7 @@ export function bookingFreeTime(text) {
   for (let i = 0; i < pages.length; i += 2) {
     const page = i ? Number(pages[i - 1]) : null;
     const clauses = pages[i]
-      .replace(/\r?\n[ \t]*(?=(?:[+&]|\d{1,2}\s*(?:DEM|DET|days?\b)|for\b))/gi, ' ')
+      .replace(/\r?\n[ \t]*(?=(?:[+&]|\d{1,2}\s*(?:DEM|DET|days?\b)|for\b|including\b))/gi, ' ')
       .replace(/([^\s:：])[^\S\r\n]+(?=Free\s+\d{1,2}\s*(?:DEM|DET)\b)/gi, '$1\n')
       .split(/\r?\n|[.;](?=\s|$)/);
     for (const part of clauses) {
@@ -114,8 +114,20 @@ export function bookingFreeTime(text) {
           commodity: cargo.commodity,
           applicable,
         });
-      if (/\bas per (?:the )?(?:(?:carrier|line)['’]?s? )?tariff\b|theo biểu phí/i.test(quote)) {
+      if (
+        /\bas per (?:the )?(?:(?:carrier|line)['’]?s? )?tariff\b|theo biểu phí/i.test(quote) ||
+        /\b(?:demurrage|detention)\b.*\btar{1,2}iffs?\s+(?:are|is)\s+(?:updated|available)\b/i.test(
+          quote,
+        )
+      ) {
         add('tariff', '');
+      }
+      const standardDet = quote.match(
+        /\bdetention\b.*\bstandard\s+free\s+time\s*\(?\s*(\d{1,2})\s+calendar\s+days?\b/i,
+      );
+      if (standardDet) {
+        add('standardDet', standardDet[1]);
+        continue;
       }
       // Rates or paired figures without individual labels cannot be split into free days.
       if (/\b(?:USD|VND|EUR|CFS|storage|plug[- ]?in)\b/i.test(quote)) continue;
