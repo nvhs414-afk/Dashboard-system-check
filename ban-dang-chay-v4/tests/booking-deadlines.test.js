@@ -110,7 +110,7 @@ test('Booking extracts operational dates only from their corresponding labels', 
   assert.equal(values.bookingAtd, '2026/04/04 10:00');
 });
 
-test('standard DET through load date uses ETD as an estimate even after gate-in', () => {
+test('combined standard free time through load date is provisional and uses ETD as an estimate', () => {
   const evidence = bookingFreeTime(
     'The additional detention charge applies after standard free time (7 calendar days including empty pick up date + Load date).',
   );
@@ -118,17 +118,37 @@ test('standard DET through load date uses ETD as an estimate even after gate-in'
     {
       ...lot,
       pickupDate: '2026/04/01',
-      detFree: '7',
+      detFree: '',
       demFree: '',
+      freeDays: '7',
       etd: '2026/04/09',
       bookingGateInActual: '2026/04/04',
     },
     '2026-04-07T00:00:00+07:00',
     evidence,
   );
-  assert.equal(result.det.deadline, '08/04/2026 00:00');
-  assert.equal(result.det.status, 'warning');
-  assert.equal(result.det.excess, 2);
-  assert.match(result.det.detail, /ngày xếp tàu.*ETD/);
-  assert.equal(result.dem.status, 'pending');
+  assert.equal(result.combined.deadline, '08/04/2026 00:00');
+  assert.equal(result.combined.status, 'pending');
+  assert.equal(result.combined.excess, 2);
+  assert.match(result.combined.detail, /ETD chặng 1.*ngày xếp tàu.*xác minh/);
+});
+
+test('the DEM warning explains whether days, the gate date, or a separate tariff is missing', () => {
+  const now = '2026-04-01T00:00:00+07:00';
+  const terms = bookingFreeTime(
+    'Additional detention charge after standard free time (7 calendar days).\n' +
+      'Combined Demurrage Detention tariff is available online.',
+  );
+  const missingDays = warnings({ ...lot, detFree: '7', demFree: '' }, now, terms).dem;
+  assert.equal(missingDays.message, 'Chưa có số ngày Free DEM');
+  assert.match(missingDays.detail, /DEM\/DET gộp dẫn chiếu biểu phí/);
+
+  const missingGate = warnings({ ...lot, cyCutoff: '' }, now, terms).dem;
+  assert.equal(missingGate.message, 'Chưa có mốc hạ bãi');
+  assert.match(missingGate.detail, /Cần mốc hạ bãi/);
+
+  const tariff = bookingFreeTime("Free DEM as per carrier's tariff");
+  const separateDem = warnings({ ...lot, demFree: '' }, now, tariff).dem;
+  assert.equal(separateDem.message, 'Cần tra biểu phí Free DEM');
+  assert.match(separateDem.detail, /biểu phí hãng tàu cho Free DEM/);
 });

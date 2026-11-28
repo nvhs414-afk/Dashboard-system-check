@@ -1,7 +1,12 @@
 import { $, esc } from './dom.js';
 import { bookingDeadlineWarnings, bookingWarningLabels } from './booking-deadlines.js';
 import { fields, groups, required, types } from './document-fields.js';
-import { freeTimeFields, standardDetTerm } from './booking-free-time.js';
+import {
+  bookingTariffFields,
+  combinedFreeTimeTerm,
+  freeTimeFields,
+  standardDetTerm,
+} from './booking-free-time.js';
 import { formatUsd, norm } from './field-values.js';
 import { selectBookingSources } from './booking-revisions.js';
 import {
@@ -26,13 +31,25 @@ export function renderStats() {
   ).length;
   $('statRisk').textContent = state.draft?.mucRuiRo || '—';
 }
+
+function renderSourceDetails(id, title, items, reason) {
+  const details = $(id);
+  details.hidden = !items.length;
+  details.querySelector('summary').textContent = `${title} (${items.length})`;
+  details.querySelector('ul').innerHTML = items
+    .map((item) => `<li><strong>${esc(item.name)}</strong><small>${esc(reason(item))}</small></li>`)
+    .join('');
+}
+
 export function renderQueue() {
   const entries = state.queue,
     visible = [...groups, 'other']
-      .map((t) => ({
-        type: t,
+      .map((type) => ({
+        type,
         files: entries.filter(
-          (f) => f.type === t && (t !== 'other' || f.status === 'Cần xác minh'),
+          (file) =>
+            file.type === type &&
+            (type === 'other' ? file.status === 'Cần xác minh' : file.status !== 'Bỏ qua'),
         ),
       }))
       .filter((g) => g.files.length);
@@ -53,14 +70,16 @@ export function renderQueue() {
             .slice(0, 3)
             .map(([key, caption]) => `${caption}: ${allFields[key]}`)
             .join(' · ');
-          const names = [...new Set(g.files.map((f) => f.name))];
+          const names = [...new Set((good.length ? good : g.files).map((f) => f.name))];
           const fileCell =
             names.length === 1
               ? esc(names[0])
-              : `<details><summary>${names.length} nguồn cùng loại</summary>${names.map((n) => `<div>${esc(n)}</div>`).join('')}</details>`;
-          const errors = g.files.filter((f) => f.error || f.ocrNote);
-          const reason = errors.length ? errors[0].error || errors[0].ocrNote : '';
-          return `<tr><td class="doc-type"><strong>${esc(types[g.type] || 'Chưa xác định loại')}</strong>${g.type === 'other' ? '' : `<small>${required.includes(g.type) ? 'Bắt buộc' : 'Bổ sung'}</small>`}</td><td><span class="mini-status ${status === 'Cần xác minh' ? 'warning' : status !== 'Đã nhận diện' ? 'pending' : ''}">${status}</span>${reason ? `<small class="error-note">${esc(reason)}</small>` : ''}</td><td class="source-list">${fileCell}</td><td>${displayedFields.length}</td><td>${esc(preview || 'Chưa có trường')}</td></tr>`;
+              : `<details><summary>${names.length} nguồn</summary>${names.map((n) => `<div>${esc(n)}</div>`).join('')}</details>`;
+          const purpose =
+            g.type === 'other'
+              ? ''
+              : `<small>${required.includes(g.type) ? 'Bắt buộc' : 'Bổ sung'}</small>`;
+          return `<tr><td class="doc-type"><strong>${esc(types[g.type])}</strong>${purpose}</td><td><span class="mini-status ${status === 'Cần xác minh' ? 'warning' : status !== 'Đã nhận diện' ? 'pending' : ''}">${status}</span></td><td class="source-list">${fileCell}</td><td>${displayedFields.length}</td><td>${esc(preview || 'Chưa có trường')}</td></tr>`;
         })
         .join('')
     : '<tr><td colspan="5" class="table-empty">Chưa có chứng từ chính được nhận diện. Tải CI, PL, Booking hoặc B/L rồi bấm Quét hồ sơ.</td></tr>';
@@ -70,6 +89,12 @@ export function renderQueue() {
       .map((f) => f.type),
   );
   const missing = required.filter((t) => !have.has(t));
+  const ignored = entries.filter((f) => f.status === 'Bỏ qua');
+  const review = entries.filter(
+    (f) => f.status === 'Cần xác minh' || (f.status === 'Đã nhận diện' && f.ocrNote),
+  );
+  renderSourceDetails('review-sources', 'Nguồn cần xem lại', review, (f) => f.error || f.ocrNote);
+  renderSourceDetails('ignored-sources', 'Mục bỏ qua', ignored, (f) => f.recognition.reason);
   $('missingBox').classList.toggle('ok', !missing.length);
   $('missingBox').textContent = !entries.length
     ? 'Chưa có hồ sơ nguồn. Bộ lõi gồm Invoice, Packing List và Booking.'
@@ -77,15 +102,16 @@ export function renderQueue() {
       ? 'Hồ sơ lõi chưa nhận diện: ' +
         missing.map((t) => types[t]).join(', ') +
         '. Hãy bổ sung hoặc xác minh tệp lỗi.'
-      : 'Đã nhận diện đủ hồ sơ bắt buộc. Nhân viên vẫn cần kiểm tra nội dung.';
+      : have.size === groups.length
+        ? 'Đã nhận diện đủ 4 nhóm chứng từ CI, PL, Booking và B/L.'
+        : 'Đã nhận diện đủ hồ sơ bắt buộc. Có thể bổ sung B/L để đối chiếu.';
   $('scanBtn').disabled =
     state.scanning || !entries.some((f) => !['Đã nhận diện', 'Bỏ qua'].includes(f.status));
-  const ignored = entries.filter((f) => f.status === 'Bỏ qua').length;
   $('uploadSummary').textContent =
     state.notice ||
     (!entries.length
       ? 'Chưa có tệp. Hãy chọn hoặc kéo thả hồ sơ.'
-      : `${state.seen.size} tệp đã tải · ${have.size} nhóm chứng từ chính${ignored ? ` · ${ignored} mục ngoài phạm vi` : ''}`);
+      : `${state.seen.size} tệp đã tải · ${have.size} nhóm chứng từ chính${ignored.length ? ` · ${ignored.length} mục bỏ qua` : ''}${review.length ? ` · ${review.length} nguồn cần xem lại` : ''}`);
   renderStats();
 }
 export function renderForm(onEdit) {
@@ -229,17 +255,22 @@ export function refreshBookingWarnings() {
   if (!panel) return;
   const evidence = bookingFreeTimeEvidence();
   const applicable = evidence.filter((entry) => entry.applicable);
+  const tariffFields = bookingTariffFields(evidence);
   const standard = !state.manual.has('detFree') && standardDetTerm(evidence);
+  const combined = combinedFreeTimeTerm(evidence);
+  const combinedReview = !state.manual.has('freeDays') && combined?.needReview;
   $('formPanel').querySelector('[for="field-detFree"]').textContent =
     freeTimeFields.detFree + (standard ? ' · Tiêu chuẩn' : '');
+  $('formPanel').querySelector('[for="field-freeDays"]').textContent =
+    freeTimeFields.freeDays + (combinedReview ? ' · Cần xác minh' : '');
   for (const key of Object.keys(freeTimeFields)) {
     const input = $('field-' + key);
     let hint = 'Cần xác nhận';
-    if (key !== 'freeDays' && value('freeDays')) hint = 'Áp dụng hạn gộp';
+    if (key !== 'freeDays' && (value('freeDays') || combined)) hint = 'Áp dụng hạn gộp';
+    else if (key === 'freeDays' && combinedReview) hint = 'Cần xác minh hạn gộp';
     else if (key === 'freeDays' && value('demFree') && value('detFree'))
       hint = 'DEM và DET ghi riêng';
-    else if (applicable.some((entry) => entry.field === 'tariff') && key !== 'detFree')
-      hint = 'Cần tra biểu phí';
+    else if (tariffFields.has(key)) hint = 'Cần tra biểu phí';
     else if (
       applicable.length &&
       !applicable.some((entry) => entry.field === key || entry.field === 'unclear')
@@ -247,13 +278,17 @@ export function refreshBookingWarnings() {
       hint = 'Booking chưa ghi số ngày';
     input.placeholder = hint;
   }
+  const suppressed = new Set();
+  if (state.manual.has('detFree')) suppressed.add('standardDet');
+  if (state.manual.has('freeDays')) suppressed.add('freeDays');
   const warnings = bookingDeadlineWarnings(
     value,
-    state.manual.has('detFree')
-      ? evidence.filter(({ field }) => field !== 'standardDet')
-      : evidence,
+    evidence.filter(({ field }) => !suppressed.has(field)),
   );
   const markup = Object.entries(bookingWarningLabels)
+    .filter(
+      ([key]) => key === 'sailing' || (warnings.combined ? key === 'combined' : key !== 'combined'),
+    )
     .map(([key, label]) => {
       const { status, message, detail, deadline, reminder } = warnings[key];
       return `<article class="booking-warning" data-warning="${key}" data-status="${status}"><h4>${label}</h4><strong>${esc(message)}</strong>${deadline ? `<p>Hạn dự kiến <b>${esc(deadline)}</b><br>Mốc nhắc trước 24 giờ <b>${esc(reminder)}</b></p>` : ''}<p>${esc(detail)}</p></article>`;
@@ -274,14 +309,21 @@ function renderBookingFreeTimeEvidence() {
     ({ location, quote, commodity, service, applicable }) =>
       `<li><small>${esc(location)}${service ? ' · Service ' + esc(service) : ''}${commodity ? ' · Hàng: ' + esc(commodity) : ''}${applicable ? '' : ' · Cần đối chiếu điều kiện áp dụng'}</small><div>${esc(quote)}</div></li>`,
   );
-  const tariff = evidence.some(({ field, applicable }) => field === 'tariff' && applicable)
-    ? '<p>Booking dẫn chiếu biểu phí hãng tàu. Cần tra biểu phí để xác nhận số ngày.</p>'
+  const tariffFields = bookingTariffFields(evidence);
+  const tariff = tariffFields.size
+    ? `<p>Booking dẫn chiếu biểu phí hãng tàu cho ${[...tariffFields].map((key) => esc(freeTimeFields[key])).join(', ')}.</p>`
     : '';
   const standard = standardDetTerm(evidence);
-  const standardNote = standard ? ` · DET tiêu chuẩn ${esc(standard.value)} ngày` : '';
-  const contract = standard
-    ? '<p>Nếu có thỏa thuận riêng cho lô hàng, áp dụng số ngày theo thỏa thuận đó.</p>'
-    : '';
+  const combined = combinedFreeTimeTerm(evidence);
+  const standardNote = combined?.value
+    ? ` · Hạn gộp ${esc(combined.value)} ngày${combined.needReview ? ' · Cần xác minh' : ''}`
+    : standard
+      ? ` · DET tiêu chuẩn ${esc(standard.value)} ngày`
+      : '';
+  const contract =
+    standard || combined?.needReview
+      ? '<p>Nếu có thỏa thuận riêng cho lô hàng, áp dụng số ngày theo thỏa thuận đó.</p>'
+      : '';
   return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET${standardNote}</summary>${contract}${tariff}<ul>${items.join('')}</ul></details>`;
 }
 

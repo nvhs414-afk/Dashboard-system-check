@@ -51,7 +51,6 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
         packingUnit ? ' CI hiển thị đơn vị lấy từ Packing List khớp số Invoice và số lượng.' : '',
       );
     }
-    pair('CI ↔ PL · Net Weight', 'invoiceNet', 'plNet', 'kg', true);
     compare(
       'CI ↔ PL · Gross Weight',
       value('invoiceGross') || packingGross,
@@ -85,7 +84,8 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
         '. Cần đối chiếu với seal thực tế trước khi xác nhận.',
     );
   const radar = makeRadar(value);
-  for (let c of radar.checks) add(c.title, c.status, c.detail);
+  checks.unshift(...radar.checks.filter((check) => check.alert));
+  checks.push(...radar.checks.filter((check) => !check.alert));
   for (const type of groups) {
     const failed = queue.filter((f) => f.type === type && f.status === 'Cần xác minh');
     if (failed.length && !has(type))

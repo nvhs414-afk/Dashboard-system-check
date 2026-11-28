@@ -1,5 +1,5 @@
 import { $, toast } from './dom.js';
-import { fields, groups } from './document-fields.js';
+import { fields, groups, types } from './document-fields.js';
 import { bookingFreeTimeEvidence, state } from './session.js';
 import { freeTimeFields, resolveFreeTime } from './booking-free-time.js';
 import { renderQueue, renderForm } from './document-view.js';
@@ -176,15 +176,25 @@ async function readQueueItem(item) {
       ? pages.map((page) => `[Trang ${page.number}]\n${page.text}`).join('\n')
       : (item.sheetText ?? (await readDocument(item.file, item.kind))));
   item.raw = maersk?.text ?? item.pdf?.layout ?? text;
-  const recognition = item.pdf?.recognition ?? recognizeDocument(item.file.name, text);
+  const emptySheet =
+    item.kind === 'sheet' &&
+    !item.sheetRows.some((row) => row.some((cell) => String(cell ?? '').trim()));
+  const recognition = emptySheet
+    ? { type: 'other', status: 'excluded', reason: 'Sheet trống.' }
+    : (item.pdf?.recognition ?? recognizeDocument(item.file.name, text));
   item.recognition = recognition;
   item.type = maersk ? 'booking' : recognition.type;
-  if (!text.trim()) throw Error('Không đọc được nội dung; kiểm tra chất lượng tệp hoặc nhập tay.');
   if (recognition.status === 'excluded') {
     item.status = 'Bỏ qua';
     item.fields = {};
+  } else if (!text.trim()) {
+    throw Error('Không đọc được nội dung; kiểm tra chất lượng tệp hoặc nhập tay.');
   } else if (!maersk && recognition.status !== 'recognized') {
-    throw Error(`Chưa đủ căn cứ nhận diện loại chứng từ (${recognition.score} điểm).`);
+    throw Error(
+      item.type === 'other'
+        ? 'Chưa đủ nội dung để xác định đây là CI, PL, Booking hay B/L.'
+        : `Có dấu hiệu của ${types[item.type]} nhưng chưa đủ nội dung để xác nhận.`,
+    );
   } else {
     const bill = item.type === 'bl';
     const positionedFields = bill
@@ -280,6 +290,7 @@ export async function scan() {
       }
     } catch (e) {
       item.status = 'Cần xác minh';
+      if (item.recognition?.status !== 'recognized') item.type = 'other';
       item.error = e.message || 'Không thể đọc tệp này.';
     }
     done++;
@@ -295,7 +306,7 @@ export async function scan() {
   bar.style.width = '100%';
   track.setAttribute('aria-valuenow', '100');
   $('progressText').textContent =
-    `Đã xử lý ${done} mục · ${state.queue.filter((item) => item.status === 'Cần xác minh').length} mục cần xác minh · ${state.queue.filter((item) => item.status === 'Bỏ qua').length} mục ngoài phạm vi.`;
+    `Đã xử lý ${done} mục · ${state.queue.filter((item) => item.status === 'Cần xác minh').length} mục cần xác minh · ${state.queue.filter((item) => item.status === 'Bỏ qua').length} mục bỏ qua.`;
   renderQueue();
   if (state.queue.some((item) => item.status === 'Đã nhận diện')) runChecks(false);
   else {

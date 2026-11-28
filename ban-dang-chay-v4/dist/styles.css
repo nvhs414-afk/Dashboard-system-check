@@ -306,6 +306,10 @@ html,body{overflow-x:clip}
 :is(.free-time-evidence, .field-sources) small { color: var(--muted); }
 :is(.free-time-evidence, .field-sources) li + li { margin-top: 8px; }
 .field-sources small { display: block; }
+.source-details { margin-top: 10px; font-size: 13px; overflow-wrap: anywhere; }
+.source-details summary { cursor: pointer; font-weight: 600; }
+.source-details small { display: block; color: var(--muted); font-size: inherit; }
+.source-details li + li { margin-top: 6px; }
 
 .booking-warning-grid {
   display: grid;
@@ -320,7 +324,7 @@ html,body{overflow-x:clip}
   padding: 10px 12px;
   overflow-wrap: anywhere;
 }
-.booking-warning[data-warning="sailing"] { grid-column: 1 / -1; }
+.booking-warning:is([data-warning="sailing"], [data-warning="combined"]) { grid-column: 1 / -1; }
 .booking-warning[data-status="pending"] { border-left-color: #8797a9; }
 .booking-warning[data-status="warning"] { background: #fff8eb; border-left-color: var(--amber); }
 .booking-warning[data-status="alert"] { background: #fff4f5; border-left-color: var(--red); }
@@ -364,6 +368,32 @@ html,body{overflow-x:clip}
 }
 #co-draft .draft-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .workspace-sidebar .badge { white-space: normal; }
+#priority-checks:not(:empty) { margin: 10px 0; }
+
+.comparison-table tbody tr.priority-warning,
+.comparison-table tbody tr.priority-warning:hover,
+.result-sidebar .check.priority-warning {
+  background: #fff0f2;
+  color: #9f182b;
+}
+.comparison-table tr.priority-warning td:first-child,
+.result-sidebar .check.priority-warning {
+  border-left: 5px solid #b3263a;
+}
+.comparison-table tr.priority-warning strong,
+.result-sidebar .check.priority-warning strong {
+  display: block;
+  color: #9f182b;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  font-weight: 800;
+  line-height: 1.16;
+  text-transform: uppercase;
+}
+.comparison-table tr.priority-warning td:last-child,
+.result-sidebar .check.priority-warning p {
+  color: #791727;
+  font-weight: 600;
+}
 
 @media (max-width: 1000px) {
   .input-layout {

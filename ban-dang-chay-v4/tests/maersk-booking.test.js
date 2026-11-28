@@ -92,7 +92,7 @@ test('read a Booking Amendment by PDF row and column regardless of text stream o
     pickupDate: '2026-08-24 00:00',
   });
   const evidence = bookingFreeTime(text);
-  const standard = evidence.find((entry) => entry.field === 'standardDet');
+  const standard = evidence.find((entry) => entry.field === 'freeDays');
   assert.equal(standard?.page, 2);
   assert.equal(standard?.value, '7');
   assert.match(standard.quote, /Load date/);
@@ -100,7 +100,7 @@ test('read a Booking Amendment by PDF row and column regardless of text stream o
     evidence.some((entry) => entry.field === 'tariff'),
     true,
   );
-  assert.deepEqual(resolveFreeTime(evidence), { detFree: '7' });
+  assert.deepEqual(resolveFreeTime(evidence), { freeDays: '7' });
 });
 
 test('keep the leg number when one date is missing and omit a repeated departure', () => {

@@ -7,39 +7,42 @@ export function resetResults() {
   $('riskBadge').className = 'badge neutral';
   $('riskExplanation').textContent = 'Tải và quét hồ sơ để bắt đầu.';
   $('scoreFill').style.width = '0';
+  $('priority-checks').replaceChildren();
 }
 export function renderComparisonTable() {
   $('checksTableBody').innerHTML = state.checks.length
     ? state.checks
         .map(
           (c) =>
-            `<tr><td><strong>${esc(c.title)}</strong></td><td><span class="badge ${c.status === 'pass' ? 'good' : c.status === 'fail' ? 'bad' : 'amber'}">${c.status === 'pass' ? 'Đạt' : c.status === 'expected' ? 'Chênh lệch dự kiến' : 'Cần xử lý'}</span></td><td>${esc(c.detail)}</td></tr>`,
+            `<tr${c.alert ? ' class="priority-warning"' : ''}><td><strong>${esc(c.alert || c.title)}</strong></td><td><span class="badge ${c.status === 'pass' ? 'good' : c.status === 'fail' ? 'bad' : 'amber'}">${c.status === 'pass' ? 'Đạt' : c.status === 'expected' ? 'Chênh lệch dự kiến' : 'Cần xử lý'}</span></td><td>${esc(c.detail)}</td></tr>`,
         )
         .join('')
     : '<tr><td colspan="3" class="table-empty">Chưa có kết quả. Tải hồ sơ và bấm Quét hồ sơ để tự đọc và đối chiếu.</td></tr>';
 }
 export function renderCheckList() {
-  const sorted = [...state.checks].sort(
-    (a, b) =>
-      ({ fail: 0, warn: 1, expected: 2, pass: 3 })[a.status] -
-      { fail: 0, warn: 1, expected: 2, pass: 3 }[b.status],
-  );
+  const priorities = state.checks.filter((c) => c.alert);
+  const sorted = state.checks
+    .filter((c) => !c.alert)
+    .sort(
+      (a, b) =>
+        ({ fail: 0, warn: 1, expected: 2, pass: 3 })[a.status] -
+        { fail: 0, warn: 1, expected: 2, pass: 3 }[b.status],
+    );
   const attention = sorted.filter((c) => c.status !== 'pass');
   const visible = state.showAll
     ? sorted
     : attention.length
       ? attention.slice(0, 5)
       : sorted.slice(0, 3);
-  $('checksList').innerHTML = visible
-    .map(
-      (c) =>
-        `<article class="check ${c.status === 'fail' ? 'fail' : c.status === 'warn' || c.status === 'expected' ? 'warn' : ''}"><div class="check-top"><strong>${esc(c.title)}</strong><span class="badge ${c.status === 'pass' ? 'good' : c.status === 'fail' ? 'bad' : 'amber'}">${c.status === 'pass' ? 'Đạt' : c.status === 'expected' ? 'Chênh lệch dự kiến' : 'Cần xử lý'}</span></div><p>${esc(c.detail)}</p></article>`,
-    )
-    .join('');
+  $('priority-checks').innerHTML = priorities.map(renderCheck).join('');
+  $('checksList').innerHTML = visible.map(renderCheck).join('');
   $('toggleChecksBtn').hidden = sorted.length <= visible.length;
   $('toggleChecksBtn').textContent = state.showAll
     ? 'Thu gọn kiểm tra'
-    : `Xem đủ ${sorted.length} kiểm tra`;
+    : `Xem đủ ${state.checks.length} kiểm tra`;
+}
+function renderCheck(c) {
+  return `<article class="check ${c.status === 'fail' ? 'fail' : c.status === 'warn' || c.status === 'expected' ? 'warn' : ''}${c.alert ? ' priority-warning' : ''}"><div class="check-top"><strong>${esc(c.alert || c.title)}</strong><span class="badge ${c.status === 'pass' ? 'good' : c.status === 'fail' ? 'bad' : 'amber'}">${c.status === 'pass' ? 'Đạt' : c.status === 'expected' ? 'Chênh lệch dự kiến' : 'Cần xử lý'}</span></div><p>${esc(c.detail)}</p></article>`;
 }
 export function renderResults(score, level, radar) {
   $('resultEmpty').hidden = true;

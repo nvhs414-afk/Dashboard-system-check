@@ -159,6 +159,44 @@ function grossWeight(rows, index, column) {
   return '';
 }
 
+function waybillGrossWeight(rows) {
+  let cargoWeight = '';
+  for (const [index, row] of rows.entries()) {
+    const grossColumn = row.blocks.findIndex(({ text }) =>
+      /^gross weight(?:\s*\((?:kgs?|kgm)\))?$/i.test(headingText(text)),
+    );
+    if (grossColumn >= 0) {
+      const weight = grossWeight(rows, index, grossColumn);
+      if (weight) return weight;
+    }
+    if (cargoWeight) continue;
+
+    // Some waybills label the cargo total simply "Weight", alongside measurement.
+    const weightColumn = row.blocks.findIndex(
+      ({ text }, column) =>
+        /^weight(?:\s*\((?:kgs?|kgm)\))?$/i.test(headingText(text)) &&
+        /^measurement$/i.test(headingText(row.blocks[column + 1]?.text || '')),
+    );
+    if (weightColumn < 0) continue;
+    const cargoHeaders = row.blocks
+      .slice(0, weightColumn)
+      .some(({ text }) =>
+        /\b(?:description of (?:goods|packages|cargo)|kind of packages|container no\b)/i.test(text),
+      );
+    const cargoTitle = rows
+      .slice(Math.max(0, index - 3), index)
+      .some(
+        (previous) =>
+          previous.y - row.y <= 24 &&
+          previous.blocks.some(({ text }) =>
+            /^particulars furnished by (?:the )?shipper$/i.test(headingText(text)),
+          ),
+      );
+    if (cargoHeaders || cargoTitle) cargoWeight = grossWeight(rows, index, weightColumn);
+  }
+  return cargoWeight || alignedKilograms(rows);
+}
+
 function alignedKilograms(rows) {
   const totals = new Set();
   for (const [index, row] of rows.entries()) {
@@ -223,18 +261,7 @@ export function extractBillOfLadingFields(items) {
       break;
     }
   }
-  for (const [index, row] of rows.entries()) {
-    const column = row.blocks.findIndex(({ text }) =>
-      /^gross weight(?:\s*\((?:kgs?|kgm)\))?$/i.test(headingText(text)),
-    );
-    if (column < 0) continue;
-    const weight = grossWeight(rows, index, column);
-    if (weight) {
-      fields.blGross = weight;
-      break;
-    }
-  }
-  const weight = fields.blGross || alignedKilograms(rows);
+  const weight = waybillGrossWeight(rows);
   if (weight) fields.blGross = weight;
   const reference = bookingReference(rows);
   if (reference) fields.blBookingNo = reference;

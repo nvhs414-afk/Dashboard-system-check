@@ -1,4 +1,4 @@
-import { standardDetTerm } from './booking-free-time.js';
+import { bookingTariffFields, combinedFreeTimeTerm, standardDetTerm } from './booking-free-time.js';
 
 const hour = 3_600_000;
 const day = 24 * hour;
@@ -63,11 +63,11 @@ function departureTiming(etd, atd) {
   return `Khởi hành ${earlier(atd, etd) ? 'sớm' : 'trễ'} hơn ETD ${duration}`;
 }
 
-const pending = (detail) => ({ status: 'pending', message: 'Cần xác nhận', detail });
+const pending = (detail, message = 'Cần xác nhận') => ({ status: 'pending', message, detail });
 
-function deadline({ name, start, days, end, closed, now, detail, workingDays }) {
+function deadline({ name, start, days, end, closed, now, detail, missingMessage, workingDays }) {
   if (workingDays) return pending('Điều khoản ghi ngày làm việc. Cần lịch nghỉ của hãng tàu.');
-  if (!start || days === null) return pending(detail);
+  if (!start || days === null) return pending(detail, missingMessage);
   if (end && earlier(end, start)) return pending('Kiểm tra lại thứ tự các mốc thời gian.');
 
   // The event date is day one. The deadline is 00:00 on the first potentially chargeable day.
@@ -94,6 +94,7 @@ function deadline({ name, start, days, end, closed, now, detail, workingDays }) 
 export const bookingWarningLabels = {
   det: 'Cảnh báo hạn DET',
   dem: 'Cảnh báo hạn DEM',
+  combined: 'Cảnh báo hạn DEM/DET gộp',
   sailing: 'Đối chiếu ETD và ngày có thể tính phí',
 };
 
@@ -111,7 +112,8 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
   const combinedDays = allowance(value('freeDays'));
   const standard = standardDetTerm(evidence);
   const standardDet = standard && Number(standard.value) === detDays ? standard : null;
-  const detThroughLoad = standardDet && /\bload(?:ing)?\s+date\b/i.test(standardDet.quote);
+  const combinedTerm = combinedFreeTimeTerm(evidence);
+  const combinedReview = !!combinedTerm?.needReview && Number(combinedTerm.value) === combinedDays;
   const workingDays = (field) =>
     evidence.some(
       (entry) =>
@@ -125,6 +127,7 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
     : gatePlanned
       ? 'gate-in dự kiến'
       : 'CY cut-off làm mốc hạ bãi dự kiến';
+  const tariffFields = bookingTariffFields(evidence);
 
   let det, dem, combined;
   if (combinedDays !== null && (detDays !== null || demDays !== null)) {
@@ -134,31 +137,41 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
       name: 'DEM/DET gộp',
       start: pickup,
       days: combinedDays,
-      end: departure,
-      closed: !!atd,
+      end: combinedTerm?.throughLoad ? etd : departure,
+      closed: !combinedTerm?.throughLoad && !!atd,
       now,
       workingDays: workingDays('freeDays'),
       detail: pickup
-        ? `Hạn gộp tính từ ${pickupSource}.`
+        ? `Hạn gộp tính từ ${pickupSource}.${combinedTerm?.throughLoad ? ' Dùng ETD chặng 1 để ước tính ngày xếp tàu.' : ''}`
         : 'Thiếu ngày lấy container rỗng để tính hạn gộp.',
     });
+    if (combinedReview) {
+      combined.status = 'pending';
+      combined.message = 'Cần xác minh hạn DEM/DET gộp';
+      combined.detail += ' Số ngày tham chiếu từ Booking, cần xác minh theo hợp đồng.';
+    }
     det = dem = combined;
   } else {
     det = deadline({
       name: 'DET',
       start: pickup,
       days: detDays,
-      end: detThroughLoad ? etd : gate,
-      closed: !detThroughLoad && !!gateActual,
+      end: gate,
+      closed: !!gateActual,
       now,
       workingDays: workingDays('detFree'),
       detail:
         detDays === null || !pickup
           ? 'Cần ngày lấy container rỗng và số ngày Free DET.'
-          : detThroughLoad
-            ? `Theo DET tiêu chuẩn, tính từ ${pickupSource} đến ngày xếp tàu. Dùng ETD chặng 1 để ước tính ngày xếp tàu.`
-            : `Tính từ ${pickupSource}${gate ? ' đến ' + gateSource : ''}.`,
+          : `Tính từ ${pickupSource}${gate ? ' đến ' + gateSource : ''}.`,
     });
+    const demTerms =
+      demDays !== null
+        ? ''
+        : tariffFields.has('demFree')
+          ? 'Booking dẫn chiếu biểu phí hãng tàu cho Free DEM.'
+          : 'Booking chưa ghi số ngày Free DEM riêng.' +
+            (tariffFields.has('freeDays') ? ' Mục DEM/DET gộp dẫn chiếu biểu phí hãng tàu.' : '');
     dem = deadline({
       name: 'DEM',
       start: gate,
@@ -167,9 +180,15 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
       closed: !!atd,
       now,
       workingDays: workingDays('demFree'),
+      missingMessage:
+        demDays === null
+          ? tariffFields.has('demFree')
+            ? 'Cần tra biểu phí Free DEM'
+            : 'Chưa có số ngày Free DEM'
+          : 'Chưa có mốc hạ bãi',
       detail:
-        demDays === null || !gate
-          ? 'Cần mốc hạ bãi và số ngày Free DEM.'
+        demTerms || !gate
+          ? [demTerms, !gate ? 'Cần mốc hạ bãi để tính hạn DEM.' : ''].filter(Boolean).join(' ')
           : `Tính từ ${gateSource}${departure ? (atd ? ' đến ATD.' : ' đến ETD chặng 1.') : '.'}`,
     });
   }
@@ -204,7 +223,11 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
       detail: [
         dates,
         counts.join(' · '),
-        excess ? 'Đối chiếu điều khoản hãng tàu để xác nhận phí.' : '',
+        combinedReview
+          ? 'Ước tính theo hạn gộp cần xác minh.'
+          : excess
+            ? 'Đối chiếu điều khoản hãng tàu để xác nhận phí.'
+            : '',
       ]
         .filter(Boolean)
         .join('. '),
@@ -222,6 +245,7 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
   return {
     det: formatDeadline(det),
     dem: formatDeadline(dem),
+    ...(combined ? { combined: formatDeadline(combined) } : {}),
     sailing,
   };
 }

@@ -36,15 +36,24 @@ export function makeRadar(value) {
   if (eta && connection) {
     const delta = Math.round((connection - eta) / 86400000),
       conflict = delta < 1;
+    const timeline = `ETA chặng 1 ${formatDate(v('etaFirst'))} · ETD tàu nối ${formatDate(v('etdConnect'))}.`;
+    const shortfall =
+      delta < 0
+        ? `ETA chặng 1 sau ngày ETD tàu nối ${-delta} ngày.`
+        : 'Hai mốc cùng ngày và thiếu 1 ngày đệm.';
+    const detail = conflict
+      ? `${timeline} ${shortfall} Có nguy cơ phải đổi chuyến và phát sinh phí lưu container. Khóa duyệt nội bộ.`
+      : `${timeline} Đủ thời gian đệm tối thiểu 1 ngày.`;
     lines.push({
       title: conflict ? 'Lịch nối · khóa duyệt nội bộ' : 'Lịch nối · đủ thời gian đệm',
-      detail: `ETA chặng 1 ${formatDate(v('etaFirst'))} · ETD tàu nối ${formatDate(v('etdConnect'))} · đệm tối thiểu 1 ngày.`,
+      detail,
       kind: conflict ? 'alert' : 'normal',
     });
     checks.push({
       title: 'Lịch tàu nối',
       status: conflict ? 'fail' : 'pass',
-      detail: `ETA ${formatDate(v('etaFirst'))} + 1 ngày so với ETD nối ${formatDate(v('etdConnect'))}. ${conflict ? 'Xung đột, khóa duyệt Internal Booking.' : 'Đủ thời gian đệm.'}`,
+      detail,
+      ...(conflict ? { alert: 'Nguy cơ lỡ tàu nối' } : {}),
     });
   } else if (v('etdConnect') || v('etaSecond'))
     lines.push({

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bookingFreeTime, resolveFreeTime, standardDetTerm } from '../src/booking-free-time.js';
+import {
+  bookingFreeTime,
+  combinedFreeTimeTerm,
+  resolveFreeTime,
+  standardDetTerm,
+} from '../src/booking-free-time.js';
 import { makeRadar } from '../src/booking-radar.js';
 import { extractFields } from '../src/extraction.js';
 
@@ -157,4 +162,40 @@ test('a default DET clause applies only when no contract or combined days supers
     ),
     { freeDays: '12' },
   );
+});
+
+test('free time from empty pickup through vessel loading fills only the combined allowance', () => {
+  const quote =
+    'Additional detention charge applies beyond standard free time (7 calendar days\nincluding empty pick up date + load date).';
+  const evidence = bookingFreeTime(quote + '\nDEM: 5 days. DET: 6 days.');
+  assert.deepEqual(resolveFreeTime(evidence), { freeDays: '7' });
+  assert.deepEqual(combinedFreeTimeTerm(evidence), {
+    value: '7',
+    needReview: true,
+    throughLoad: true,
+  });
+
+  const explicit = bookingFreeTime('Combined DEM/DET free time: 10 calendar days.');
+  assert.deepEqual(combinedFreeTimeTerm(explicit), {
+    value: '10',
+    needReview: false,
+    throughLoad: false,
+  });
+
+  const byRange = bookingFreeTime(
+    'Free time: 8 calendar days from empty-container pick-up until loading.',
+  );
+  assert.deepEqual(combinedFreeTimeTerm(byRange), {
+    value: '8',
+    needReview: false,
+    throughLoad: true,
+  });
+  assert.deepEqual(
+    resolveFreeTime(
+      bookingFreeTime('Miễn phí 7 ngày tính từ ngày lấy container rỗng đến ngày xếp tàu.'),
+    ),
+    { freeDays: '7' },
+  );
+  assert.deepEqual(resolveFreeTime([...evidence, ...explicit]), {});
+  assert.equal(combinedFreeTimeTerm([...evidence, ...explicit]).needReview, true);
 });

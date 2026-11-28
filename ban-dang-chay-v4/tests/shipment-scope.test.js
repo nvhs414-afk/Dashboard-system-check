@@ -65,6 +65,17 @@ test('a declaration workbook is skipped, even when it contains an invoice refere
   assert.deepEqual(extractFields('customs', text), {});
 });
 
+test('contract sheets and customs sources stay excluded despite strong invoice keywords', () => {
+  const invoiceSignals = 'Invoice No: INV-123\nUnit Price\nAmount USD\nFOB\nInvoice Date';
+  const customs = recognizeDocument('ToKhaiHQ7X_QDTQ_12345.xls', invoiceSignals);
+  assert.equal(customs.status, 'excluded');
+  assert.equal(customs.reason, 'Tờ khai hải quan.');
+  assert.equal(recognizeDocument('DSContainer 12345.pdf', invoiceSignals).status, 'excluded');
+  const contract = recognizeDocument('commercial.xlsx', 'PURCHASE CONTRACT\n' + invoiceSignals);
+  assert.equal(contract.status, 'excluded');
+  assert.equal(contract.reason, 'Hợp đồng mua bán.');
+});
+
 test('declaration status, fields and missing documents do not affect comparison or draft', () => {
   const queue = ['invoice', 'packing', 'booking', 'bl'].map((type) => ({
     type,
@@ -83,4 +94,24 @@ test('declaration status, fields and missing documents do not affect comparison 
     actual.checks.some(({ title }) => /tờ khai|phân luồng/i.test(title)),
     false,
   );
+});
+
+test('Net Weight extracted from documents does not affect the comparison or risk score', () => {
+  const queue = ['invoice', 'packing', 'booking'].map((type) => ({
+    type,
+    status: 'Đã nhận diện',
+  }));
+  const visibleValues = { invoiceGross: '5,896.40', plGross: '5,896.400' };
+  const baseline = evaluateShipment(queue, (key) => visibleValues[key] || '');
+
+  for (const netValues of [{ plNet: '4,450.40' }, { plNet: '4,450.40', invoiceNet: '4,850.40' }]) {
+    const values = { ...visibleValues, ...netValues };
+    const { checks, draft, score } = evaluateShipment(queue, (key) => values[key] || '');
+    assert.deepEqual(checks, baseline.checks);
+    assert.equal(score, baseline.score);
+    assert.deepEqual(draft.kiemTra, baseline.checks);
+    assert.ok(
+      checks.some(({ title, status }) => title === 'CI ↔ PL · Gross Weight' && status === 'pass'),
+    );
+  }
 });

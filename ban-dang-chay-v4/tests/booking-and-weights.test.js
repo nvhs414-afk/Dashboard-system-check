@@ -149,3 +149,23 @@ test('quantity and unit checks use the same Packing List unit shown in the invoi
     'expected',
   );
 });
+
+test('connecting schedule distinguishes late arrivals, same-day connections and sufficient buffer', () => {
+  const queue = [{ type: 'booking', status: 'Đã nhận diện' }];
+  const values = { bookingNo: 'DEMO100', etaFirst: '2026-09-13', etdConnect: '2026-09-11' };
+  const evaluate = () => evaluateShipment(queue, (key) => values[key] || '');
+  const connection = () => evaluate().checks.find(({ title }) => title === 'Lịch tàu nối');
+
+  const late = connection();
+  assert.equal(evaluate().checks[0].title, 'Lịch tàu nối');
+  assert.equal(late.status, 'fail');
+  assert.equal(late.alert, 'Nguy cơ lỡ tàu nối');
+  assert.match(late.detail, /13\/09\/2026.*11\/09\/2026.*sau ngày ETD tàu nối 2 ngày/);
+  assert.match(late.detail, /đổi chuyến.*phí lưu container/);
+
+  values.etdConnect = '2026-09-13';
+  assert.match(connection().detail, /cùng ngày.*thiếu 1 ngày đệm/);
+  values.etdConnect = '2026-09-14';
+  assert.equal(connection().status, 'pass');
+  assert.equal(connection().alert, undefined);
+});

@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Archivo:wght@400;500;600&amp;family=Inter:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
-  <link rel="stylesheet" href="./styles.css?v=workspace-sidebar-1">
+  <link rel="stylesheet" href="./styles.css?v=combined-free-time-1">
   <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-  <script type="module" src="./app.js?v=booking-free-time-2"></script>
+  <script type="module" src="./app.js?v=combined-free-time-1"></script>
 </head>
 <body>
   <header class="topbar">
@@ -35,7 +35,11 @@
           <div class="input-main">
             <div class="upload-shell"><div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Chọn hoặc thả bộ chứng từ"><span class="drop-icon" data-icon="upload"></span><strong>Kéo thả cả bộ hồ sơ vào đây</strong><span>Đọc PDF, Word, Excel, ảnh và ZIP; tổng hợp CI, PL, Booking và B/L.</span><label class="button light" for="files">Chọn tệp từ máy</label><input id="files" type="file" multiple aria-label="Chọn bộ chứng từ nhiều định dạng"></div>
             <div class="upload-toolbar"><div class="toolbar-info"><span class="status-dot"></span><span id="uploadSummary" role="status">Chưa có tệp. Hãy chọn hoặc kéo thả hồ sơ.</span></div><div class="toolbar-buttons"><button id="scanBtn" type="button" class="button primary" disabled data-icon="scan">Quét hồ sơ</button><button id="clearBtn" type="button" class="button dark-outline" data-icon="trash">Xóa dữ liệu hồ sơ cũ</button></div></div><div id="progressWrap" class="progress-wrap" hidden><div class="progress-track" role="progressbar" aria-label="Tiến độ quét" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progressBar"></span></div><small id="progressText">Đang chuẩn bị quét...</small></div></div>
-            <div class="panel doc-panel"><div class="panel-title"><div><p class="eyebrow">HỒ SƠ NGUỒN</p><h3>Danh sách hồ sơ đã nạp và nhận diện</h3></div><span class="panel-caption">Bắt buộc: CI · PL · Booking</span></div><div class="table-scroll"><table class="docs-table"><thead><tr><th>Hồ sơ nhận diện</th><th>Trạng thái</th><th>File đã tải</th><th>Trường đã đọc</th><th>Nội dung chính</th></tr></thead><tbody id="docsBody"><tr><td colspan="5" class="table-empty">Chưa có chứng từ. Chọn tệp ở khu vực trên để bắt đầu.</td></tr></tbody></table></div><div id="missingBox" class="missing-box" aria-live="polite">Bộ lõi bắt buộc: Commercial Invoice, Packing List và Booking. Chưa có hồ sơ để kiểm tra.</div><p class="panel-foot">Bảng hiển thị bốn nhóm chứng từ: CI, PL, Booking và B/L. Nhân viên xác nhận lại dữ liệu đã đọc.</p></div>
+            <div class="panel doc-panel"><div class="panel-title"><div><p class="eyebrow">HỒ SƠ NGUỒN</p><h3>Danh sách hồ sơ đã nạp và nhận diện</h3></div><span class="panel-caption">Bắt buộc: CI · PL · Booking</span></div><div class="table-scroll"><table class="docs-table"><thead><tr><th>Hồ sơ nhận diện</th><th>Trạng thái</th><th>File đã tải</th><th>Trường đã đọc</th><th>Nội dung chính</th></tr></thead><tbody id="docsBody"><tr><td colspan="5" class="table-empty">Chưa có chứng từ. Chọn tệp ở khu vực trên để bắt đầu.</td></tr></tbody></table></div>
+              <div id="missingBox" class="missing-box" aria-live="polite">Bộ lõi bắt buộc: Commercial Invoice, Packing List và Booking. Chưa có hồ sơ để kiểm tra.</div>
+              <details id="review-sources" class="source-details" hidden><summary>Nguồn cần xem lại</summary><ul></ul></details>
+              <details id="ignored-sources" class="source-details" hidden><summary>Mục bỏ qua</summary><ul></ul></details>
+            </div>
             <div class="form-head"><div><p class="eyebrow">DỮ LIỆU TỪ HỒ SƠ</p><h3>Dữ liệu trích xuất</h3><p>Mỗi sheet được đọc riêng. Trường nhận diện tự điền; khi bạn sửa tay, kết quả kiểm tra cập nhật ngay.</p></div><span id="dataOrigin" class="origin-tag">Chưa có dữ liệu</span></div><div id="formTabs" class="tabs" role="tablist" aria-label="Nhóm dữ liệu chứng từ"></div><div id="formPanel" class="form-panel"></div>
           </div>
 
@@ -46,7 +50,9 @@
 
         <aside class="workspace-sidebar" aria-label="Tóm tắt và bản nháp">
           <section class="result-sidebar" aria-labelledby="results-summary-title">
-            <h3 id="results-summary-title">Tóm tắt rủi ro</h3><p class="sidebar-intro">Các điểm cần xử lý hiển thị theo mức độ ảnh hưởng.</p>
+            <h3 id="results-summary-title">Tóm tắt rủi ro</h3>
+            <div id="priority-checks" class="checks-list"></div>
+            <p class="sidebar-intro">Các điểm cần xử lý hiển thị theo mức độ ảnh hưởng.</p>
             <div class="score-card"><div class="score-row"><div><span class="score-label">Điểm rủi ro</span><strong id="scoreValue">—</strong><span class="score-total">/100</span></div><span id="riskBadge" class="badge neutral">Chưa chạy</span></div><p id="riskExplanation">Tải và quét hồ sơ để bắt đầu.</p><div class="score-rail"><span id="scoreFill"></span></div></div>
             <div id="resultEmpty" class="result-empty" data-icon="clipboard">Chưa có kết quả kiểm tra.</div>
             <div id="resultContent" hidden><div class="result-summary"><h4>Tổng hợp</h4><p id="checkSummary"></p></div><div id="checksList" class="checks-list"></div><button id="toggleChecksBtn" type="button" class="button view-all" hidden>Xem tất cả kiểm tra</button>

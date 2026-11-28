@@ -59,7 +59,7 @@ export const types = {
   packing: 'Packing List (PL)',
   booking: 'Booking',
   bl: 'B/L / Sea Waybill',
-  other: 'Chưa xác định',
+  other: 'Hồ sơ khác',
   zip: 'Gói ZIP',
 };
 export const required = ['invoice', 'packing', 'booking'];

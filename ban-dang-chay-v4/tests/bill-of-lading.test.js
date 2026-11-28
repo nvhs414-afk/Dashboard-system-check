@@ -89,6 +89,29 @@ test('an aligned kilograms total beside Measurement survives a missing gross hea
   );
 });
 
+test('a cargo Weight column supplies gross kilograms without using the container line or CBM', () => {
+  const cargo = [
+    span('Weight', 414, 504, 16),
+    span('Measurement', 500, 504, 30),
+    span('5896.400 KGS', 412, 494, 59),
+    span('65.2230 CBM', 492, 494, 54),
+    span('3,200.000 KGS 32.40 CBM', 42, 477, 160),
+  ];
+  assert.equal(extractBillOfLadingFields(cargo).blGross, undefined);
+  assert.equal(
+    extractBillOfLadingFields([span('PARTICULARS FURNISHED BY SHIPPER', 220, 513), ...cargo])
+      .blGross,
+    '5896.400',
+  );
+  assert.equal(
+    extractBillOfLadingFields([
+      span('Description of goods; Container No./Seal No.', 35, 504),
+      ...cargo,
+    ]).blGross,
+    '5896.400',
+  );
+});
+
 test('a split carrier prefix and bill number stay in their printed column', () => {
   const result = extractBillOfLadingFields([
     span('B/L No.', 438, 729, 20),

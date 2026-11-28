@@ -1,7 +1,7 @@
 import { norm } from './field-values.js';
 
 const excludedTitle =
-  /^(?:to khai(?: hang hoa| hai quan| xuat khau| nhap khau)*|customs declaration|danh sach giam sat|ds container|certificate of origin|chung nhan xuat xu|sales contract|purchase order|hop dong(?: mua ban)?|shipping instructions?|si|arrival notice|giay bao hang den|verified gross mass|vgm(?: declaration)?|dinh muc|material consumption)(?:$| no\b| form\b)/;
+  /^(?:to khai(?: hang hoa| hai quan| xuat khau| nhap khau)*|customs declaration|danh sach giam sat|ds container|certificate of origin|chung nhan xuat xu|(?:sales?|purchase) contract|purchase order|hop dong(?: mua ban)?|shipping instructions?|si|arrival notice|giay bao hang den|verified gross mass|vgm(?: declaration)?|dinh muc|material consumption)(?:$| no\b| form\b)|^(?:danh sach|bang ke) container\b.*\b(?:hai quan|giam sat)\b/;
 const documents = {
   booking: {
     title:
@@ -60,15 +60,23 @@ function filenameHint(name) {
   return 'other';
 }
 
-export function isOutOfScopeFilename(name) {
+function filenameExclusion(name) {
   const file = String(name).split(/[\\/]/).pop();
-  return (
-    /to\s*khai|customs declaration|giam sat|vnaccs|certificate of origin|chung nhan xuat xu/.test(
-      norm(file),
-    ) ||
-    /^(?:co|c[\s_-]+o)\.[a-z0-9]+$/i.test(file) ||
-    /\b(?:dinh muc|dm\d*|material consumption)\b/.test(norm(file))
-  );
+  const normalized = norm(file);
+  if (/giam sat|\bds\s*container\b/.test(normalized))
+    return 'Danh sách container hoặc giám sát hải quan.';
+  if (/to\s*khai|customs declaration|vnaccs/.test(normalized)) return 'Tờ khai hải quan.';
+  if (
+    /certificate of origin|chung nhan xuat xu/.test(normalized) ||
+    /^(?:co|c[\s_-]+o)\.[a-z0-9]+$/i.test(file)
+  )
+    return 'Chứng nhận xuất xứ.';
+  if (/\b(?:dinh muc|dm\d*|material consumption)\b/.test(normalized)) return 'Bảng định mức.';
+  return '';
+}
+
+export function isOutOfScopeFilename(name) {
+  return Boolean(filenameExclusion(name));
 }
 
 function titleCells(text) {
@@ -87,9 +95,19 @@ export function recognizeDocument(name, text) {
       cells.some((cell) => title.test(cell)),
     );
     if (headingTypes.length) break;
-    if (cells.some((cell) => excludedTitle.test(cell))) {
-      return { type: 'other', score: 5, heading: true, status: 'excluded' };
+    const excluded = cells.find((cell) => excludedTitle.test(cell));
+    if (excluded) {
+      const reason =
+        filenameExclusion(name) ||
+        (/^(?:(?:sales?|purchase) contract|hop dong)\b/.test(excluded)
+          ? 'Hợp đồng mua bán.'
+          : 'Loại chứng từ ngoài phạm vi đối chiếu.');
+      return { type: 'other', score: 5, heading: true, status: 'excluded', reason };
     }
+  }
+  const excluded = filenameExclusion(name);
+  if (!headingTypes.length && excluded) {
+    return { type: 'other', score: 0, heading: false, status: 'excluded', reason: excluded };
   }
 
   const body = norm(text);
@@ -104,8 +122,6 @@ export function recognizeDocument(name, text) {
   scores.sort((a, b) => b.score - a.score);
   const [best, next] = scores;
   if (best.score >= 5 && best.score > (next?.score ?? 0)) return { ...best, status: 'recognized' };
-  if (isOutOfScopeFilename(name) && !headingTypes.length)
-    return { type: 'other', score: 0, heading: false, status: 'excluded' };
   const hint = filenameHint(name);
   return {
     type: best.score > (next?.score ?? 0) ? best.type : hint,

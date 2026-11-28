@@ -27,6 +27,16 @@ const combinedAfter = new RegExp(
 );
 const combinedBefore = new RegExp(String.raw`\b(\d{1,2})\s+${days}\s+${combined}`, 'i');
 
+function coversPickupThroughLoad(quote) {
+  const text = norm(quote);
+  return (
+    /\b(?:from|including|starting (?:from|on))\b.{0,24}\bempty (?:container )?pick ?up\b.{0,55}\b(?:load(?:ing)? (?:date|day)|loading|loaded on board|loading on board)\b/.test(
+      text,
+    ) ||
+    /\b(?:tu|bao gom)\b.{0,20}\blay (?:container )?rong\b.{0,55}\bxep (?:len )?tau\b/.test(text)
+  );
+}
+
 function cargoProfile(text) {
   const equipment = new Set(
     [
@@ -113,7 +123,10 @@ export function bookingFreeTime(text) {
       })),
     );
     const clauses = pages[i]
-      .replace(/\r?\n[ \t]*(?=(?:[+&]|\d{1,2}\s*(?:DEM|DET|days?\b)|for\b|including\b))/gi, ' ')
+      .replace(
+        /\r?\n[ \t]*(?=(?:[+&]|\d{1,2}\s*(?:DEM|DET|days?\b)|for\b|including\b|(?:from|to|until|through)\s+(?:the\s+)?(?:empty\s+(?:container\s+)?pick|load)|đến\s+(?:ngày\s+)?xếp))/gi,
+        ' ',
+      )
       .replace(/([^\s:：])[^\S\r\n]+(?=Free\s+\d{1,2}\s*(?:DEM|DET)\b)/gi, '$1\n')
       .split(/\r?\n|[.;](?=\s|$)/);
     for (const part of clauses) {
@@ -148,7 +161,8 @@ export function bookingFreeTime(text) {
         quote.match(
           /\bstandard\s+(?:DET|detention)\s+free\s+time\s*[:：]?\s*\(?\s*(\d{1,3})\s+(?:(?:calendar|working|business)\s+)?days?\b/i,
         );
-      if (standardDet && !combinedLabel.test(quote)) {
+      const throughLoad = coversPickupThroughLoad(quote);
+      if (standardDet && !combinedLabel.test(quote) && !throughLoad) {
         add('standardDet', standardDet[1]);
         continue;
       }
@@ -166,8 +180,16 @@ export function bookingFreeTime(text) {
       }
       const after = quote.match(combinedAfter);
       const before = quote.match(combinedBefore);
-      if ((after || before) && !/\bnot\s+combined\b/i.test(quote)) {
-        add('freeDays', (after || before)[1]);
+      const rangeCount =
+        throughLoad &&
+        /\b(?:free time|free days?|days? free|detention|det|mien phi)\b/.test(norm(quote))
+          ? norm(quote).match(
+              /\b(\d{1,3})\s+(?:(?:calendar|working|business|free)\s+)?(?:days?|ngay)\b/,
+            )?.[1]
+          : '';
+      const combinedCount = (after || before)?.[1] || rangeCount;
+      if (combinedCount && !/\bnot\s+combined\b/i.test(quote)) {
+        add('freeDays', combinedCount);
         continue;
       }
       for (const [, free, label, count, unit] of quote.matchAll(prefix)) {
@@ -204,9 +226,39 @@ export function standardDetTerm(evidence) {
   if (distinct.size === 1) return defaults[0];
 }
 
+export function bookingTariffFields(evidence) {
+  const fields = new Set();
+  for (const { field, applicable, quote } of evidence) {
+    if (field !== 'tariff' || !applicable) continue;
+    if (combinedLabel.test(quote)) fields.add('freeDays');
+    else {
+      if (/\bdem(?:urrage)?\b/i.test(quote)) fields.add('demFree');
+      if (/\bdet(?:ention)?\b/i.test(quote)) fields.add('detFree');
+    }
+  }
+  return fields;
+}
+
+export function combinedFreeTimeTerm(evidence) {
+  const terms = evidence.filter(({ field, applicable }) => field === 'freeDays' && applicable);
+  if (!terms.length) return;
+  const values = new Set(terms.map(({ value }) => Number(value)));
+  const throughLoad = terms.some(({ quote }) => coversPickupThroughLoad(quote));
+  const provisional = ({ quote }) =>
+    /\b(?:standard|contract|tieu chuan|hop dong)\b/.test(norm(quote)) ||
+    (/\b(?:det|detention)\b/i.test(quote) && !/\b(?:dem|demurrage)\b/i.test(quote));
+  return {
+    value: values.size === 1 ? String([...values][0]) : '',
+    needReview: values.size > 1 || terms.every(provisional),
+    throughLoad,
+  };
+}
+
 export function resolveFreeTime(evidence) {
+  const combined = combinedFreeTimeTerm(evidence);
+  if (combined) return combined.value ? { freeDays: combined.value } : {};
   const fields = {};
-  for (const field of Object.keys(freeTimeFields)) {
+  for (const field of ['demFree', 'detFree']) {
     const values = new Set(
       evidence
         .filter((entry) => entry.field === field && entry.applicable)
