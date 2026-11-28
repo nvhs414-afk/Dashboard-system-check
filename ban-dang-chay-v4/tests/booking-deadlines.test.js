@@ -22,6 +22,7 @@ test('DET and DEM alert exactly 24 hours before their separate Vietnam deadlines
   assert.equal(detWindow.det.message, 'Còn 24 giờ đến hạn DET');
   assert.equal(detWindow.det.deadline, '05/04/2026 00:00');
   assert.equal(detWindow.det.reminder, '04/04/2026 00:00');
+  assert.equal(detWindow.det.freeRange, '30/03/2026 - 04/04/2026');
   assert.equal(detWindow.dem.status, 'normal');
   assert.match(detWindow.dem.detail, /CY cut-off/);
   const demWindow = warnings(lot, '2026-04-07T00:00:00+07:00');
@@ -29,6 +30,7 @@ test('DET and DEM alert exactly 24 hours before their separate Vietnam deadlines
   assert.equal(demWindow.dem.status, 'warning');
   assert.equal(demWindow.dem.deadline, '08/04/2026 00:00');
   assert.equal(demWindow.dem.reminder, '07/04/2026 00:00');
+  assert.equal(demWindow.dem.freeRange, '01/04/2026 - 07/04/2026');
   assert.equal(warnings(lot, '2026-04-08T00:00:00+07:00').dem.status, 'alert');
   assert.match(demWindow.sailing.message, /Chưa có ATD/);
   assert.match(demWindow.sailing.detail, /DET 0 ngày.*DEM 0 ngày/);
@@ -45,6 +47,7 @@ test('actual gate-in closes DET and actual departure provides an early or late c
   );
   assert.equal(late.det.excess, 2);
   assert.equal(late.dem.excess, 2);
+  assert.equal(late.dem.freeRange, '06/04/2026 - 12/04/2026');
   assert.match(late.det.detail, /thực tế/);
   assert.equal(late.sailing.status, 'alert');
   assert.match(late.sailing.message, /trễ hơn ETD 260 giờ 30 phút/);
@@ -69,6 +72,7 @@ test('estimates distinguish a late planned ETD from an actual delay', () => {
   const missingGate = warnings({ ...lot, cyCutoff: '' }, '2026-04-04T00:00:00+07:00');
   assert.equal(missingGate.det.status, 'warning');
   assert.equal(missingGate.dem.status, 'pending');
+  assert.equal(missingGate.dem.freeRange, '');
   assert.match(missingGate.sailing.detail, /DET cần xác nhận.*DEM cần xác nhận/);
 });
 
@@ -81,9 +85,14 @@ test('combined terms use one allowance, and working days or invalid dates stay p
   assert.equal(combined.det.status, 'warning');
   assert.equal(combined.dem.deadline, '06/04/2026 00:00');
   assert.match(combined.sailing.detail, /DEM\/DET gộp 1 ngày/);
-  assert.equal(warnings({ ...lot, freeDays: '7' }, now).dem.status, 'pending');
+  const conflicting = warnings({ ...lot, freeDays: '7' }, now);
+  assert.equal(conflicting.dem.status, 'pending');
+  assert.equal(conflicting.dem.freeRange, '');
+  assert.equal(conflicting.combined, undefined);
   const working = bookingFreeTime('DET: 6 business days. DEM: 7 calendar days.');
-  assert.equal(warnings(lot, now, working).det.status, 'pending');
+  const detWorking = warnings(lot, now, working).det;
+  assert.equal(detWorking.status, 'pending');
+  assert.equal(detWorking.freeRange, '');
   assert.equal(warnings(lot, now, working).dem.status, 'normal');
   assert.equal(warnings({ ...lot, pickupDate: '2026/02/30 11:00' }, now).det.status, 'pending');
   assert.equal(warnings({ ...lot, bookingGateInActual: '2026/04/04' }, now).dem.status, 'pending');
@@ -128,9 +137,20 @@ test('combined standard free time through load date is provisional and uses ETD 
     evidence,
   );
   assert.equal(result.combined.deadline, '08/04/2026 00:00');
+  assert.equal(result.combined.freeRange, '01/04/2026 - 07/04/2026');
   assert.equal(result.combined.status, 'pending');
   assert.equal(result.combined.excess, 2);
   assert.match(result.combined.detail, /ETD chặng 1.*ngày xếp tàu.*xác minh/);
+});
+
+test('a one-day allowance covers just the start date and zero days has no free range', () => {
+  const result = warnings(
+    { ...lot, bookingPickupActual: '31/03/2026 12:00', detFree: '1', demFree: '0' },
+    '2026-03-31T20:00:00+07:00',
+  );
+  assert.equal(result.det.freeRange, '31/03/2026 - 31/03/2026');
+  assert.equal(result.det.deadline, '01/04/2026 00:00');
+  assert.equal(result.dem.freeRange, '');
 });
 
 test('the DEM warning explains whether days, the gate date, or a separate tariff is missing', () => {

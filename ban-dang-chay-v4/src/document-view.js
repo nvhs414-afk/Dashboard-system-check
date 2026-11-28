@@ -19,6 +19,8 @@ import {
   value,
 } from './session.js';
 
+const freeTimeWarnings = { demFree: 'dem', detFree: 'det', freeDays: 'combined' };
+
 export function renderStats() {
   $('statDocs').textContent = new Set(
     state.queue
@@ -144,7 +146,10 @@ export function renderForm(onEdit) {
     }
     const freeTime = Object.hasOwn(freeTimeFields, key);
     const placeholder = freeTime ? 'Cần xác nhận' : 'Chưa đọc được';
-    const input = `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="${placeholder}"${freeTime ? ' inputmode="numeric"' : ''}></div>`;
+    const attributes = freeTime
+      ? 'readonly aria-describedby="booking-free-time-note"'
+      : `data-field="${key}" value="${content}" title="${content}" autocomplete="off"`;
+    const input = `<div class="field${freeTime ? ' booking-free-time' : ''}"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" ${attributes} placeholder="${placeholder}"></div>`;
     return key === 'freeDays' ? [input, renderBookingWarningsPanel()] : input;
   });
   if (booking) controls.push(renderBookingRevisionNotice(), renderBookingFreeTimeEvidence());
@@ -243,10 +248,14 @@ function renderBookingWarningsPanel() {
     const content = esc(value(key));
     return `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="DD/MM/YYYY HH:mm"></div>`;
   });
+  const allowanceControls = Object.entries(freeTimeFields).map(([key, label]) => {
+    const content = esc(value(key));
+    return `<div class="field"><label for="field-${key}-days">${esc(label)} (ngày)</label><input id="field-${key}-days" data-field="${key}" value="${content}" title="${content}" inputmode="numeric" autocomplete="off" placeholder="Chưa có số ngày"></div>`;
+  });
   return `<section class="field-wide booking-warnings" aria-label="Cảnh báo DEM và DET">
     <div id="bookingWarnings" class="booking-warning-grid" aria-live="polite"></div>
-    <p class="booking-warning-note">Ước tính cho hàng xuất theo ngày lịch, tính ngày bắt đầu là ngày 1, theo giờ Việt Nam. Cảnh báo cập nhật khi mở trang.</p>
-    <details><summary>Mốc thực tế dùng để đối chiếu</summary><div class="booking-warning-grid">${controls.join('')}</div></details>
+    <p id="booking-free-time-note" class="booking-warning-note">Khoảng miễn phí tính theo ngày lịch, gồm cả ngày bắt đầu và ngày kết thúc, theo giờ Việt Nam. Xem cảnh báo bên trên để biết mốc tính dự kiến hoặc thực tế.</p>
+    <details><summary>Mốc thực tế và số ngày miễn phí</summary><div class="booking-warning-grid">${[...controls, ...allowanceControls].join('')}</div></details>
   </section>`;
 }
 
@@ -259,14 +268,31 @@ export function refreshBookingWarnings() {
   const standard = !state.manual.has('detFree') && standardDetTerm(evidence);
   const combined = combinedFreeTimeTerm(evidence);
   const combinedReview = !state.manual.has('freeDays') && combined?.needReview;
-  $('formPanel').querySelector('[for="field-detFree"]').textContent =
-    freeTimeFields.detFree + (standard ? ' · Tiêu chuẩn' : '');
-  $('formPanel').querySelector('[for="field-freeDays"]').textContent =
-    freeTimeFields.freeDays + (combinedReview ? ' · Cần xác minh' : '');
-  for (const key of Object.keys(freeTimeFields)) {
+  const suppressed = new Set();
+  if (state.manual.has('detFree')) suppressed.add('standardDet');
+  if (state.manual.has('freeDays')) suppressed.add('freeDays');
+  const warnings = bookingDeadlineWarnings(
+    value,
+    evidence.filter(({ field }) => !suppressed.has(field)),
+  );
+  for (const [key, label] of Object.entries(freeTimeFields)) {
     const input = $('field-' + key);
+    const raw = value(key);
+    const count = /^\d{1,3}$/.test(raw) ? Number(raw) : null;
+    const warning = key !== 'freeDays' && warnings.combined ? undefined : warnings[freeTimeWarnings[key]];
+    const range = warning?.freeRange || '';
+    const qualifier = key === 'detFree' && standard
+      ? 'Tiêu chuẩn'
+      : key === 'freeDays' && combinedReview
+        ? 'Cần xác minh'
+        : '';
+    $('formPanel').querySelector(`[for="field-${key}"]`).textContent =
+      [label, count === null ? '' : `${count} ngày`, qualifier].filter(Boolean).join(' · ');
     let hint = 'Cần xác nhận';
-    if (key !== 'freeDays' && (value('freeDays') || combined)) hint = 'Áp dụng hạn gộp';
+    if (key !== 'freeDays' && count === null && (value('freeDays') || combined))
+      hint = 'Áp dụng hạn gộp';
+    else if (count === 0) hint = 'Không có ngày miễn phí';
+    else if (count !== null) hint = 'Chưa xác định khoảng ngày';
     else if (key === 'freeDays' && combinedReview) hint = 'Cần xác minh hạn gộp';
     else if (key === 'freeDays' && value('demFree') && value('detFree'))
       hint = 'DEM và DET ghi riêng';
@@ -276,15 +302,10 @@ export function refreshBookingWarnings() {
       !applicable.some((entry) => entry.field === key || entry.field === 'unclear')
     )
       hint = 'Booking chưa ghi số ngày';
+    if (input.value !== range) input.value = range;
     input.placeholder = hint;
+    input.title = range || warning?.detail || hint;
   }
-  const suppressed = new Set();
-  if (state.manual.has('detFree')) suppressed.add('standardDet');
-  if (state.manual.has('freeDays')) suppressed.add('freeDays');
-  const warnings = bookingDeadlineWarnings(
-    value,
-    evidence.filter(({ field }) => !suppressed.has(field)),
-  );
   const markup = Object.entries(bookingWarningLabels)
     .filter(
       ([key]) => key === 'sailing' || (warnings.combined ? key === 'combined' : key !== 'combined'),

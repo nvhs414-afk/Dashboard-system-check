@@ -71,7 +71,8 @@ function deadline({ name, start, days, end, closed, now, detail, missingMessage,
   if (end && earlier(end, start)) return pending('Kiểm tra lại thứ tự các mốc thời gian.');
 
   // The event date is day one. The deadline is 00:00 on the first potentially chargeable day.
-  const limit = localDay(start.instant) + days * day;
+  const firstFreeDay = localDay(start.instant);
+  const limit = firstFreeDay + days * day;
   const reminder = limit - day;
   const excess = end ? Math.max(0, (localDay(end.instant) - limit) / day + 1) : null;
   const timeLeft = limit - now;
@@ -88,7 +89,8 @@ function deadline({ name, start, days, end, closed, now, detail, missingMessage,
     message = `Còn ${Math.ceil(timeLeft / hour)} giờ đến hạn ${name}`;
   }
 
-  return { status, message, limit, reminder, excess, detail };
+  const freeRange = days > 0 ? `${display(firstFreeDay, false)} - ${display(limit - day, false)}` : '';
+  return { status, message, limit, reminder, excess, detail, freeRange };
 }
 
 export const bookingWarningLabels = {
@@ -234,11 +236,12 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
     };
   }
 
-  const formatDeadline = ({ status, message, detail, excess, limit, reminder }) => ({
+  const formatDeadline = ({ status, message, detail, excess, limit, reminder, freeRange = '' }) => ({
     status,
     message,
     detail,
     excess,
+    freeRange,
     deadline: limit === undefined ? '' : display(limit),
     reminder: reminder === undefined ? '' : display(reminder),
   });
