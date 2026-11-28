@@ -329,30 +329,60 @@ html,body{overflow-x:clip}
 .booking-warnings details { margin-top: 8px; }
 .booking-warnings summary { cursor: pointer; }
 .booking-warnings details .booking-warning-grid { margin-top: 8px; }
-.booking-email { margin: 14px 0 10px; padding: 12px 0 6px; border-top: 1px solid var(--line); }
-.booking-email-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
-.booking-email-controls .button { min-width: 0; }
-#bookingEmailPreview { white-space: pre-line; overflow-wrap: anywhere; }
-
-.comparison-section { background: #eef3f8; }
+.input-layout {
+  --sidebar-top: 84px;
+  --sidebar-gap: 12px;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 18.5vw, 350px);
+  gap: var(--sidebar-gap);
+  margin-inline: max(24px, calc((100% - 1200px) / 2)) 12px;
+}
+.workspace-main { min-width: 0; max-width: 1200px; }
+.comparison-section { margin-top: 20px; }
 .comparison-section .comparison-panel { margin-top: 0; min-width: 0; }
-.co-section { background: #fff; }
-.co-section .draft { background: #f6f8fb; }
-.co-section .draft-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 800px) {
-  .co-section .draft-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.workspace-sidebar {
+  --sidebar-panel-space: calc(100dvh - var(--sidebar-top) - var(--sidebar-gap) - 12px);
+  position: sticky;
+  top: var(--sidebar-top);
+  display: grid;
+  gap: var(--sidebar-gap);
+  min-width: 0;
+}
+.workspace-sidebar .result-sidebar {
+  position: relative;
+  top: auto;
+  max-height: min(440px, calc(var(--sidebar-panel-space) * .55));
+  scroll-margin-top: 0;
+  padding: 16px;
+}
+#co-draft {
+  max-height: calc(var(--sidebar-panel-space) * .45);
+  overflow-y: auto;
+  min-width: 0;
+  padding: 16px;
+  background: #f6f8fb;
+}
+#co-draft .draft-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.workspace-sidebar .badge { white-space: normal; }
+
+@media (max-width: 1000px) {
+  .input-layout {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(1200px, calc(100% - 48px));
+    margin-inline: auto;
+  }
+  .workspace-sidebar { position: static; }
+  .workspace-sidebar .result-sidebar, #co-draft { max-height: none; overflow: visible; }
 }
 @media (max-width: 620px) {
+  .input-layout { width: calc(100% - 30px); }
   .booking-warning-grid { grid-template-columns: minmax(0, 1fr); }
-  .booking-email-controls { grid-template-columns: minmax(0, 1fr); }
-  .booking-email-controls .button { justify-self: start; }
 }
 
 @media print {
-  main > :not(#co-draft) { display: none !important; }
-  #co-draft { padding: 0; background: #fff; }
-  #co-draft .wrap { width: 100%; }
-  #co-draft .draft { background: #fff; box-shadow: none; }
+  main > :not(#input), #input > .wrap, .workspace-main, .workspace-sidebar > :not(#co-draft) { display: none !important; }
+  #input.input-section { display: block !important; padding: 0; background: #fff; }
+  .input-layout, .workspace-sidebar { display: block; position: static; width: 100%; margin: 0; }
+  #co-draft { max-height: none; overflow: visible; padding: 0; background: #fff; box-shadow: none; }
   #co-draft .draft-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #co-draft .draft-field { break-inside: avoid; }
 }

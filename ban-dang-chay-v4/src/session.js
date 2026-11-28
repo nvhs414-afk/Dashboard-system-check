@@ -12,7 +12,6 @@ export const state = {
   active: 'invoice',
   notice: '',
   showAll: false,
-  bookingEmail: '',
 };
 export function value(k) {
   return String(state.form[k] ?? '').trim();

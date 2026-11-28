@@ -24,7 +24,6 @@ function clearAll() {
   state.active = 'invoice';
   state.notice = '';
   state.showAll = false;
-  state.bookingEmail = '';
   $('resultContent').hidden = true;
   $('resultEmpty').hidden = false;
   $('resultEmpty').textContent = 'Chưa có kết quả kiểm tra.';
@@ -69,7 +68,7 @@ $('toggleChecksBtn').addEventListener('click', () => {
   renderCheckList();
 });
 $('clearBtn').addEventListener('click', () => {
-  if (!state.queue.length && !state.bookingEmail && !Object.values(state.form).some(Boolean)) {
+  if (!state.queue.length && !Object.values(state.form).some(Boolean)) {
     toast('Không có dữ liệu để xóa.');
     return;
   }

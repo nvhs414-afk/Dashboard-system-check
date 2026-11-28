@@ -63,12 +63,6 @@ function departureTiming(etd, atd) {
 
 const pending = (detail) => ({ status: 'pending', message: 'Cần xác nhận', detail });
 
-function reminderLine(name, instant, now, hasTime = true) {
-  if (instant === undefined || instant - now > day || localDay(now) > localDay(instant)) return '';
-  const days = (localDay(instant) - localDay(now)) / day;
-  return `CẢNH BÁO CÒN ${days} NGÀY TỚI NGÀY ${display(instant, hasTime)} (${name})`;
-}
-
 function deadline({ name, start, days, end, closed, now, detail, workingDays }) {
   if (workingDays) return pending('Điều khoản ghi ngày làm việc. Cần lịch nghỉ của hãng tàu.');
   if (!start || days === null) return pending(detail);
@@ -92,8 +86,7 @@ function deadline({ name, start, days, end, closed, now, detail, workingDays }) 
     message = `Còn ${Math.ceil(timeLeft / hour)} giờ đến hạn ${name}`;
   }
 
-  const emailReminder = closed ? '' : reminderLine(`HẠN ${name.toUpperCase()}`, limit, now);
-  return { status, message, limit, reminder, excess, detail, emailReminder };
+  return { status, message, limit, reminder, excess, detail };
 }
 
 export const bookingWarningLabels = {
@@ -219,12 +212,9 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
     deadline: limit === undefined ? '' : display(limit),
     reminder: reminder === undefined ? '' : display(reminder),
   });
-  const emailReminders = [det.emailReminder, dem.emailReminder];
-  if (etd && !atd) emailReminders.push(reminderLine('ETD CHẶNG 1', etd.instant, now, etd.hasTime));
   return {
     det: formatDeadline(det),
     dem: formatDeadline(dem),
     sailing,
-    emailReminders: [...new Set(emailReminders.filter(Boolean))],
   };
 }

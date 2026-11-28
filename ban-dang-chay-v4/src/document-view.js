@@ -136,13 +136,6 @@ export function renderForm(onEdit) {
     input.value = formatUsd(input.value.trim());
     input.title = input.value;
   });
-  if (booking) {
-    $('bookingEmail').addEventListener('input', (event) => {
-      state.bookingEmail = event.currentTarget.value.trim();
-      refreshBookingWarnings();
-    });
-    $('bookingEmailDraft').addEventListener('click', openBookingEmailDraft);
-  }
   const sources = state.queue.filter((f) => f.type === state.active && f.status === 'Đã nhận diện');
   $('dataOrigin').textContent = sources.length
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
@@ -164,13 +157,6 @@ function renderBookingWarningsPanel() {
   return `<section class="field-wide booking-warnings" aria-label="Cảnh báo DEM và DET">
     <div id="bookingWarnings" class="booking-warning-grid" aria-live="polite"></div>
     <p class="booking-warning-note">Ước tính cho hàng xuất theo ngày lịch, tính ngày bắt đầu là ngày 1, theo giờ Việt Nam. Cảnh báo cập nhật khi mở trang.</p>
-    <div class="booking-email">
-      <div class="booking-email-controls">
-        <div class="field"><label for="bookingEmail">Email nhận cảnh báo</label><input id="bookingEmail" type="email" required autocomplete="email" aria-describedby="bookingEmailPreview" placeholder="ten@gmail.com" value="${esc(state.bookingEmail)}"></div>
-        <button id="bookingEmailDraft" type="button" class="button primary" disabled>Soạn trong Gmail</button>
-      </div>
-      <p id="bookingEmailPreview" class="booking-warning-note" role="status"></p>
-    </div>
     <details><summary>Mốc thực tế dùng để đối chiếu</summary><div class="booking-warning-grid">${controls.join('')}</div></details>
   </section>`;
 }
@@ -186,32 +172,6 @@ export function refreshBookingWarnings() {
     })
     .join('');
   if (panel.innerHTML !== markup) panel.innerHTML = markup;
-  const { emailReminders } = warnings;
-  const email = $('bookingEmail');
-  const preview = $('bookingEmailPreview');
-  const text =
-    email.value && !email.validity.valid
-      ? 'Kiểm tra địa chỉ email.'
-      : emailReminders.join('\n') ||
-        'Có thể soạn thư trong 24 giờ trước hạn và trong ngày đến hạn DEM, DET hoặc ETD.';
-  if (preview.textContent !== text) preview.textContent = text;
-  $('bookingEmailDraft').disabled = !emailReminders.length || !email.validity.valid;
-}
-
-function openBookingEmailDraft() {
-  const email = $('bookingEmail');
-  const { emailReminders } = bookingDeadlineWarnings(value, bookingFreeTimeEvidence());
-  if (!email.validity.valid || !emailReminders.length) return;
-  const booking = value('bookingNo');
-  const url = new URL('https://mail.google.com/mail/');
-  url.search = new URLSearchParams({
-    view: 'cm',
-    fs: '1',
-    to: email.value.trim(),
-    su: `CẢNH BÁO HẠN BOOKING${booking ? ' ' + booking : ''}`,
-    body: emailReminders.join('\r\n'),
-  }).toString();
-  window.open(url.href, '_blank', 'noopener,noreferrer');
 }
 
 function renderBookingFreeTimeEvidence() {

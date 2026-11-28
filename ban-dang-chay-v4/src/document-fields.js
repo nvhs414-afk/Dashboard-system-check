@@ -38,7 +38,6 @@ export const fields = {
     ['etaSecond', 'ETA chặng 2'],
     ['etd', 'ETD chặng 1'],
     ['etdConnect', 'ETD chặng 2'],
-    ['pickupDate', 'Ngày nhận container rỗng'],
     ['bookingPickupCy', 'Empty Pick-up CY'],
     ...Object.entries(freeTimeFields),
     ['cyCutoff', 'CY cut-off'],
