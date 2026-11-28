@@ -102,6 +102,13 @@ export function FreightHero() {
       scene.style.setProperty("--edge-px", `${top + 0.448 * h}px`);
       scene.style.setProperty("--split-px", `${top + 0.6 * h}px`);
       stripW = strip.scrollWidth;
+      const letterSize = (phone ? 180 : 330) * u;
+      scene.style.setProperty("--letters-size", `${letterSize}px`);
+      const naturalWidth = letters.scrollWidth;
+      const visibleWidth = vw * 0.96;
+      if (!phone && naturalWidth > visibleWidth) {
+        scene.style.setProperty("--letters-size", `${letterSize * visibleWidth / naturalWidth}px`);
+      }
       lettersW = letters.scrollWidth;
       B = ((stripW + 0.45 * vw) / vw) * 1.1;
       track.style.height = `${(1 + A + B) * vh}px`;
@@ -212,7 +219,7 @@ export function FreightHero() {
           aria-hidden="true"
         />
         <div ref={lettersRef} className="fh-letters" aria-hidden="true">
-          DOUBLE CHECK
+          DOUBLE CHECK SYSTEM
         </div>
         <div className="fh-speed" aria-hidden="true">
           <span ref={speedRef}>00</span> KM/H
