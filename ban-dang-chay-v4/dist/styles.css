@@ -297,14 +297,15 @@ html,body{overflow-x:clip}
   border-color: var(--orange);
   box-shadow: 0 0 0 3px rgba(194, 65, 12, .14);
 }
-.free-time-evidence {
+:is(.free-time-evidence, .field-sources) {
   border-top: 1px solid var(--line);
   padding-top: 8px;
   overflow-wrap: anywhere;
 }
-.free-time-evidence summary { cursor: pointer; }
-.free-time-evidence small { color: var(--muted); }
-.free-time-evidence li + li { margin-top: 8px; }
+:is(.free-time-evidence, .field-sources) summary { cursor: pointer; }
+:is(.free-time-evidence, .field-sources) small { color: var(--muted); }
+:is(.free-time-evidence, .field-sources) li + li { margin-top: 8px; }
+.field-sources small { display: block; }
 
 .booking-warning-grid {
   display: grid;

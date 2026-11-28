@@ -88,3 +88,15 @@ test('an aligned kilograms total beside Measurement survives a missing gross hea
     '1,234.500',
   );
 });
+
+test('a split carrier prefix and bill number stay in their printed column', () => {
+  const result = extractBillOfLadingFields([
+    span('B/L No.', 438, 729, 20),
+    span('HDMU', 474, 729, 18),
+    span('SHIPPER NAME', 24, 722, 70),
+    span('OTHER99001', 308, 719, 60),
+    span('SGNM43040700', 443, 719, 65),
+  ]);
+  assert.equal(result.blBillNo, 'HDMUSGNM43040700');
+  assert.equal(result.blBillNoAlias, 'SGNM43040700');
+});

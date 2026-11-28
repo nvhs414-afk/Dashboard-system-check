@@ -1,5 +1,7 @@
 import { num } from './field-values.js';
 import { bookingFreeTime } from './booking-free-time.js';
+import { selectBookingSources } from './booking-revisions.js';
+import { resolvePackingIdentifiers } from './packing-identifiers.js';
 
 export const state = {
   queue: [],
@@ -17,12 +19,10 @@ export function value(k) {
   return String(state.form[k] ?? '').trim();
 }
 
-export function bookingFreeTimeEvidence() {
-  return state.queue
-    .filter((item) => item.type === 'booking' && item.status === 'Đã nhận diện')
-    .flatMap((item) =>
-      bookingFreeTime(item.raw || '').map((entry) => ({ ...entry, file: item.name })),
-    );
+export function bookingFreeTimeEvidence(sources = selectBookingSources(state.queue).sources) {
+  return sources.flatMap((item) =>
+    bookingFreeTime(item.raw || '').map((entry) => ({ ...entry, file: item.name })),
+  );
 }
 
 function matchingPackingLists() {
@@ -59,29 +59,21 @@ export function packingUnitForInvoice() {
 }
 
 export function billIdentifiersForPacking() {
-  const recognized = state.queue.filter((item) => item.status === 'Đã nhận diện');
-  if (!recognized.some((item) => item.type === 'packing')) return {};
-  const bills = recognized.filter((item) => item.type === 'bl');
-  if (!bills.length) return {};
-
-  for (const field of ['blContainer', 'blSeal']) {
-    const values = new Set(
-      bills.map((item) => item.fields[field]?.trim().toUpperCase()).filter(Boolean),
-    );
-    if (values.size > 1) return {};
-  }
-  if (
-    bills.length > 1 &&
-    value('blContainer') &&
-    value('blSeal') &&
-    !bills.some(({ fields }) => fields.blContainer && fields.blSeal)
-  )
-    return {};
-
-  return {
-    plContainer: state.manual.has('plContainer') ? '' : value('blContainer'),
-    plSeal: state.manual.has('plSeal') ? '' : value('blSeal'),
-  };
+  const packing = state.queue.filter(
+    (item) => item.type === 'packing' && item.status === 'Đã nhận diện',
+  );
+  const invoice = value('plInvoiceNo').toUpperCase();
+  const selected = invoice
+    ? packing.filter(({ fields }) => fields.plInvoiceNo?.toUpperCase() === invoice)
+    : packing;
+  if (selected.length !== 1)
+    return selected.length > 1 ? { reason: 'Có nhiều Packing List cùng số Invoice.' } : {};
+  const resolved = resolvePackingIdentifiers(state.queue, {
+    ...selected[0],
+    fields: { ...selected[0].fields, plContainer: value('plContainer'), plSeal: value('plSeal') },
+  });
+  for (const key of ['plContainer', 'plSeal']) if (state.manual.has(key)) delete resolved[key];
+  return resolved;
 }
 
 export function billPartiesForBooking() {

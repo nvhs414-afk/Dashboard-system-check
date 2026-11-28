@@ -1,3 +1,5 @@
+import { standardDetTerm } from './booking-free-time.js';
+
 const hour = 3_600_000;
 const day = 24 * hour;
 const vietnamOffset = 7 * hour;
@@ -107,11 +109,14 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
   const detDays = allowance(value('detFree'));
   const demDays = allowance(value('demFree'));
   const combinedDays = allowance(value('freeDays'));
+  const standard = standardDetTerm(evidence);
+  const standardDet = standard && Number(standard.value) === detDays ? standard : null;
+  const detThroughLoad = standardDet && /\bload(?:ing)?\s+date\b/i.test(standardDet.quote);
   const workingDays = (field) =>
     evidence.some(
       (entry) =>
         entry.applicable &&
-        entry.field === field &&
+        (entry.field === field || (field === 'detFree' && entry === standardDet)) &&
         /\b(?:working|business) days?\b/i.test(entry.quote),
     );
   const pickupSource = pickupActual ? 'ngày lấy rỗng thực tế' : 'ngày lấy rỗng dự kiến';
@@ -143,14 +148,16 @@ export function bookingDeadlineWarnings(value, evidence = [], now = Date.now()) 
       name: 'DET',
       start: pickup,
       days: detDays,
-      end: gate,
-      closed: !!gateActual,
+      end: detThroughLoad ? etd : gate,
+      closed: !detThroughLoad && !!gateActual,
       now,
       workingDays: workingDays('detFree'),
       detail:
         detDays === null || !pickup
           ? 'Cần ngày lấy container rỗng và số ngày Free DET.'
-          : `Tính từ ${pickupSource}${gate ? ' đến ' + gateSource : ''}.`,
+          : detThroughLoad
+            ? `Theo DET tiêu chuẩn, tính từ ${pickupSource} đến ngày xếp tàu. Dùng ETD chặng 1 để ước tính ngày xếp tàu.`
+            : `Tính từ ${pickupSource}${gate ? ' đến ' + gateSource : ''}.`,
     });
     dem = deadline({
       name: 'DEM',

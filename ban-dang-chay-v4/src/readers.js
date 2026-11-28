@@ -27,19 +27,22 @@ function ocrTextItems(data, scale) {
   })));
 }
 
-async function pdfText(file, { forceOcr = false, onPdfPage, onOcrPage } = {}) {
+async function pdfText(file, { forceOcr = false, onPage, pageNumbers } = {}) {
   const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   let worker, ocrError, nativeError;
   let usedOcr = false;
   const pages = [];
+  const selection = pageNumbers && new Set(pageNumbers);
   try {
     const pdf = await task.promise;
     for (let number = 1; number <= pdf.numPages; number++) {
+      if (selection && !selection.has(number)) continue;
       const page = await pdf.getPage(number);
       let pageText = '';
+      let native = [], recognized = [];
       try {
         const { items } = await page.getTextContent();
-        onPdfPage?.(items);
+        native = items;
         let lastY;
         for (const item of items) {
           const y = item.transform?.[5];
@@ -68,7 +71,7 @@ async function pdfText(file, { forceOcr = false, onPdfPage, onOcrPage } = {}) {
             if (data.text?.trim()) {
               usedOcr = true;
               pageText = data.text;
-              onOcrPage?.(ocrTextItems(data, scale));
+              recognized = ocrTextItems(data, scale);
             }
           } finally {
             canvas.width = canvas.height = 0;
@@ -77,6 +80,7 @@ async function pdfText(file, { forceOcr = false, onPdfPage, onOcrPage } = {}) {
           ocrError ??= error;
         }
       }
+      onPage?.({ number, text: pageText, native, recognized });
       if (pageText.trim()) pages.push(`[Trang ${number}]\n${pageText}`);
     }
     // A blank or unreadable attachment must not discard text read from earlier pages.

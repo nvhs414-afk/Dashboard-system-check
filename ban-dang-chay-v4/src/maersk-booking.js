@@ -1,4 +1,5 @@
 import { textBlocks, textRows } from './pdf-layout.js';
+import { bookingService } from './booking-service-free-time.js';
 
 const transportHeading = /^Intended Transport Plan$/i;
 const itineraryHeading = /^Load Itinerary$/i;
@@ -101,7 +102,7 @@ function positionedRows(items) {
   });
 }
 
-export function readMaerskBooking(pages) {
+export function readMaerskBooking(pages, numbers = []) {
   if (!pages.length) return;
   const first = positionedRows(pages[0]);
   const plan = first.findIndex((row) => transportHeading.test(row.text));
@@ -120,12 +121,15 @@ export function readMaerskBooking(pages) {
     .map((row) => row.text)
     .join('\n');
   const text = layouts
-    .map((rows, page) => `[Trang ${page + 1}]\n${rows.map((row) => row.text).join('\n')}`)
+    .map(
+      (rows, page) =>
+        `[Trang ${numbers[page] ?? page + 1}]\n${rows.map((row) => row.text).join('\n')}`,
+    )
     .join('\n');
   const serviceMode = header.match(/\bService Mode:\s*([A-Z]+\s*\/\s*[A-Z]+)/i)?.[1] || '';
   const origin = header.match(/\bFrom:[ \t]*([^\r\n]+)/i)?.[1];
   const destination = header.match(/\bTo:[ \t]*([^\r\n]+)/i)?.[1];
-  const service = header.match(/^Service\s+([A-Z0-9-]+)\s*$/im)?.[1].toUpperCase();
+  const service = bookingService(header);
   const legs = transportLegs(first, plan, itinerary);
   const pickupRow =
     itinerary < 0

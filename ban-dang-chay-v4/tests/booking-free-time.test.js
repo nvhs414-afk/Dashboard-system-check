@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bookingFreeTime, resolveFreeTime } from '../src/booking-free-time.js';
+import { bookingFreeTime, resolveFreeTime, standardDetTerm } from '../src/booking-free-time.js';
 import { makeRadar } from '../src/booking-radar.js';
 import { extractFields } from '../src/extraction.js';
 
@@ -110,4 +110,51 @@ test('ambiguous terms and contradictions keep the relevant fields pending', () =
     assert.deepEqual(resolveFreeTime(bookingFreeTime(text)), {});
   }
   assert.deepEqual(resolveFreeTime(bookingFreeTime('Free 6DET + 7DEM for DC-general cargo')), {});
+});
+
+test('apply only the declared service row and ignore the CY cut-off schedule', () => {
+  const text = [
+    '[Trang 1]',
+    'SERVICE I11',
+    '[Trang 2]',
+    'Service  Proforma ETD  CY Cut off at Terminal  Cut off at ICDs',
+    'I11  Thu  Wed 03:00 PM  Tue 07:00 PM',
+    'Service | Free DEM (days) | DET (calendar days)',
+    'I10 | 3 | 4',
+    'I11 | 5 | 6',
+    'Additional detention charge exceeds standard free time (7 calendar days).',
+  ].join('\n');
+  const evidence = bookingFreeTime(text);
+  assert.deepEqual(resolveFreeTime(evidence), { demFree: '5', detFree: '6' });
+  assert.equal(standardDetTerm(evidence), undefined);
+  assert.ok(
+    evidence.some(({ service, applicable, page }) => service === 'I11' && applicable && page === 2),
+  );
+  assert.ok(evidence.some(({ service, applicable }) => service === 'I10' && !applicable));
+  assert.ok(!evidence.some(({ quote }) => quote.includes('Proforma ETD')));
+  assert.deepEqual(resolveFreeTime(bookingFreeTime(text.replace('I11 | 5 | 6', 'I11  6'))), {
+    detFree: '7',
+  });
+});
+
+test('a default DET clause applies only when no contract or combined days supersede it', () => {
+  const standard =
+    'Additional detention charge is applicable after standard free time (7 calendar days).';
+  const booking = 'Service Code: I11\n' + standard;
+  const extract = (other) => resolveFreeTime(bookingFreeTime(booking + '\n' + other));
+  assert.deepEqual(extract('Combined Demurrage Detention tariff is available online.'), {
+    detFree: '7',
+  });
+  assert.deepEqual(
+    extract('For service I11: Free DET: 10 days. Free DET: 3 days for service I10.'),
+    { detFree: '10' },
+  );
+  assert.deepEqual(extract('DET as per agreement. DET as per contract.'), {});
+  assert.deepEqual(extract('Combined Demurrage Detention: 12 calendar days.'), { freeDays: '12' });
+  assert.deepEqual(
+    resolveFreeTime(
+      bookingFreeTime('Combined Demurrage and Detention standard free time: 12 calendar days.'),
+    ),
+    { freeDays: '12' },
+  );
 });

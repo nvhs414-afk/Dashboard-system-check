@@ -100,7 +100,7 @@ test('read a Booking Amendment by PDF row and column regardless of text stream o
     evidence.some((entry) => entry.field === 'tariff'),
     true,
   );
-  assert.deepEqual(resolveFreeTime(evidence), {});
+  assert.deepEqual(resolveFreeTime(evidence), { detFree: '7' });
 });
 
 test('keep the leg number when one date is missing and omit a repeated departure', () => {

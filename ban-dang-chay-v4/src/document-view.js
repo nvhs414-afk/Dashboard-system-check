@@ -1,8 +1,9 @@
 import { $, esc } from './dom.js';
 import { bookingDeadlineWarnings, bookingWarningLabels } from './booking-deadlines.js';
 import { fields, groups, required, types } from './document-fields.js';
-import { freeTimeFields } from './booking-free-time.js';
-import { formatUsd } from './field-values.js';
+import { freeTimeFields, standardDetTerm } from './booking-free-time.js';
+import { formatUsd, norm } from './field-values.js';
+import { selectBookingSources } from './booking-revisions.js';
 import {
   billIdentifiersForPacking,
   billPartiesForBooking,
@@ -27,15 +28,20 @@ export function renderStats() {
 }
 export function renderQueue() {
   const entries = state.queue,
-    visible = groups
-      .map((t) => ({ type: t, files: entries.filter((f) => f.type === t) }))
+    visible = [...groups, 'other']
+      .map((t) => ({
+        type: t,
+        files: entries.filter(
+          (f) => f.type === t && (t !== 'other' || f.status === 'Cần xác minh'),
+        ),
+      }))
       .filter((g) => g.files.length);
   $('docsBody').innerHTML = visible.length
     ? visible
         .map((g) => {
           const good = g.files.filter((f) => f.status === 'Đã nhận diện'),
             allFields = Object.assign({}, ...good.map((f) => f.fields)),
-            count = Object.values(allFields).filter(Boolean).length;
+            displayedFields = (fields[g.type] || []).filter(([key]) => allFields[key]);
           const status = good.length
             ? 'Đã nhận diện'
             : g.files.some((f) => f.status === 'Đang xử lý')
@@ -43,10 +49,9 @@ export function renderQueue() {
               : g.files.some((f) => f.status === 'Chờ quét')
                 ? 'Chờ quét'
                 : 'Cần xác minh';
-          const preview = Object.entries(allFields)
-            .filter(([, v]) => v)
+          const preview = displayedFields
             .slice(0, 3)
-            .map(([k, v]) => `${fields[g.type]?.find((x) => x[0] === k)?.[1] || k}: ${v}`)
+            .map(([key, caption]) => `${caption}: ${allFields[key]}`)
             .join(' · ');
           const names = [...new Set(g.files.map((f) => f.name))];
           const fileCell =
@@ -55,7 +60,7 @@ export function renderQueue() {
               : `<details><summary>${names.length} nguồn cùng loại</summary>${names.map((n) => `<div>${esc(n)}</div>`).join('')}</details>`;
           const errors = g.files.filter((f) => f.error || f.ocrNote);
           const reason = errors.length ? errors[0].error || errors[0].ocrNote : '';
-          return `<tr><td class="doc-type"><strong>${esc(types[g.type])}</strong><small>${required.includes(g.type) ? 'Bắt buộc' : 'Bổ sung'}</small></td><td><span class="mini-status ${status === 'Cần xác minh' ? 'warning' : status !== 'Đã nhận diện' ? 'pending' : ''}">${status}</span>${reason ? `<small class="error-note">${esc(reason)}</small>` : ''}</td><td class="source-list">${fileCell}</td><td>${count}</td><td>${esc(preview || 'Chưa có trường')}</td></tr>`;
+          return `<tr><td class="doc-type"><strong>${esc(types[g.type] || 'Chưa xác định loại')}</strong>${g.type === 'other' ? '' : `<small>${required.includes(g.type) ? 'Bắt buộc' : 'Bổ sung'}</small>`}</td><td><span class="mini-status ${status === 'Cần xác minh' ? 'warning' : status !== 'Đã nhận diện' ? 'pending' : ''}">${status}</span>${reason ? `<small class="error-note">${esc(reason)}</small>` : ''}</td><td class="source-list">${fileCell}</td><td>${displayedFields.length}</td><td>${esc(preview || 'Chưa có trường')}</td></tr>`;
         })
         .join('')
     : '<tr><td colspan="5" class="table-empty">Chưa có chứng từ chính được nhận diện. Tải CI, PL, Booking hoặc B/L rồi bấm Quét hồ sơ.</td></tr>';
@@ -116,7 +121,12 @@ export function renderForm(onEdit) {
     const input = `<div class="field"><label for="field-${key}">${esc(label)}</label><input id="field-${key}" data-field="${key}" value="${content}" title="${content}" autocomplete="off" placeholder="${placeholder}"${freeTime ? ' inputmode="numeric"' : ''}></div>`;
     return key === 'freeDays' ? [input, renderBookingWarningsPanel()] : input;
   });
-  if (booking) controls.push(renderBookingFreeTimeEvidence());
+  if (booking) controls.push(renderBookingRevisionNotice(), renderBookingFreeTimeEvidence());
+  if (state.active === 'packing')
+    controls.push('<p id="packing-identifier-note" class="field-wide error-note" hidden></p>');
+  controls.push(
+    '<details id="field-sources" class="field-wide field-sources" hidden><summary>Nguồn các trường đã đọc</summary><ul></ul></details>',
+  );
   $('formPanel').innerHTML =
     `<div class="field-grid${booking ? ' booking-field-grid' : ''}">${controls.join('')}</div>`;
   $('formPanel')
@@ -127,6 +137,7 @@ export function renderForm(onEdit) {
         state.manual.add(input.dataset.field);
         input.title = input.value;
         renderSupplementalFields();
+        renderFieldSources();
         refreshBookingWarnings();
         if (state.queue.some((f) => f.status === 'Đã nhận diện')) onEdit();
         $('dataOrigin').textContent = 'Đã chỉnh tay · kết quả đã cập nhật';
@@ -142,7 +153,58 @@ export function renderForm(onEdit) {
     ? `${fields[state.active].filter(([k]) => value(k)).length} trường từ ${sources.length} nguồn`
     : 'Chưa trích được trường nhóm này';
   renderSupplementalFields();
+  renderFieldSources();
   refreshBookingWarnings();
+}
+
+function renderBookingRevisionNotice() {
+  const { mixed, conflicts, older, changed } = selectBookingSources(state.queue);
+  const labels = (keys) =>
+    fields.booking
+      .filter(([key]) => keys.includes(key))
+      .map(([, label]) => label)
+      .join(', ');
+  const messages = [];
+  if (mixed) messages.push('Có nhiều nguồn Booking chưa đối chiếu được với cùng một số Booking.');
+  if (older)
+    messages.push(
+      `Đang dùng Booking có ngày phát hành mới nhất${labels(changed) ? ' · Đã đổi: ' + labels(changed) : ''}.`,
+    );
+  if (labels(conflicts))
+    messages.push('Cần xác minh các trường khác nhau giữa các bản: ' + labels(conflicts) + '.');
+  return messages.length ? `<p class="field-wide error-note">${esc(messages.join(' '))}</p>` : '';
+}
+
+function renderFieldSources() {
+  const panel = $('field-sources');
+  const sources =
+    state.active === 'booking'
+      ? selectBookingSources(state.queue).sources
+      : state.queue.filter((item) => item.type === state.active && item.status === 'Đã nhận diện');
+  const packing = state.active === 'packing' ? billIdentifiersForPacking() : {};
+  const items = fields[state.active].flatMap(([key, caption]) => {
+    if (state.manual.has(key) || !(packing[key]?.value || value(key))) return [];
+    const source = packing[key]?.item ?? sources.find((item) => item.fields[key] === value(key));
+    if (!source) return [];
+    const readValue = packing[key]?.value || value(key);
+    const needle = norm(readValue);
+    let page = source.pdf?.pages.length === 1 ? source.pdf.pages[0].number : '';
+    let currentPage = page;
+    let quote = '';
+    for (const line of (source.raw || '').split('\n')) {
+      const marker = line.match(/^\[Trang (\d+)\]$/);
+      if (marker) currentPage = marker[1];
+      else if (needle.length >= 4 && (' ' + norm(line) + ' ').includes(' ' + needle + ' ')) {
+        page = currentPage;
+        quote = line.trim().slice(0, 240);
+        break;
+      }
+    }
+    const location = page ? (source.sourceName || source.name) + ' · Trang ' + page : source.name;
+    return `<li><strong>${esc(caption)}</strong><small>${esc(location)}</small>${quote ? `<div>${esc(quote)}</div>` : ''}</li>`;
+  });
+  panel.hidden = !items.length;
+  panel.querySelector('ul').innerHTML = items.join('');
 }
 
 function renderBookingWarningsPanel() {
@@ -165,7 +227,32 @@ function renderBookingWarningsPanel() {
 export function refreshBookingWarnings() {
   const panel = $('bookingWarnings');
   if (!panel) return;
-  const warnings = bookingDeadlineWarnings(value, bookingFreeTimeEvidence());
+  const evidence = bookingFreeTimeEvidence();
+  const applicable = evidence.filter((entry) => entry.applicable);
+  const standard = !state.manual.has('detFree') && standardDetTerm(evidence);
+  $('formPanel').querySelector('[for="field-detFree"]').textContent =
+    freeTimeFields.detFree + (standard ? ' · Tiêu chuẩn' : '');
+  for (const key of Object.keys(freeTimeFields)) {
+    const input = $('field-' + key);
+    let hint = 'Cần xác nhận';
+    if (key !== 'freeDays' && value('freeDays')) hint = 'Áp dụng hạn gộp';
+    else if (key === 'freeDays' && value('demFree') && value('detFree'))
+      hint = 'DEM và DET ghi riêng';
+    else if (applicable.some((entry) => entry.field === 'tariff') && key !== 'detFree')
+      hint = 'Cần tra biểu phí';
+    else if (
+      applicable.length &&
+      !applicable.some((entry) => entry.field === key || entry.field === 'unclear')
+    )
+      hint = 'Booking chưa ghi số ngày';
+    input.placeholder = hint;
+  }
+  const warnings = bookingDeadlineWarnings(
+    value,
+    state.manual.has('detFree')
+      ? evidence.filter(({ field }) => field !== 'standardDet')
+      : evidence,
+  );
   const markup = Object.entries(bookingWarningLabels)
     .map(([key, label]) => {
       const { status, message, detail, deadline, reminder } = warnings[key];
@@ -179,27 +266,23 @@ function renderBookingFreeTimeEvidence() {
   const evidence = bookingFreeTimeEvidence();
   if (!evidence.length) return '';
   const clauses = new Map();
-  for (const { file, page, quote, commodity, applicable } of evidence) {
+  for (const { file, page, quote, commodity, service, applicable } of evidence) {
     const location = file + (page ? ' · Trang ' + page : '');
-    clauses.set(location + '\n' + quote, { location, quote, commodity, applicable });
+    clauses.set(location + '\n' + quote, { location, quote, commodity, service, applicable });
   }
   const items = [...clauses.values()].map(
-    ({ location, quote, commodity, applicable }) =>
-      `<li><small>${esc(location)}${commodity ? ' · Hàng: ' + esc(commodity) : ''}${applicable ? '' : ' · Điều khoản theo loại hàng khác hoặc cần xác nhận'}</small><div>${esc(quote)}</div></li>`,
+    ({ location, quote, commodity, service, applicable }) =>
+      `<li><small>${esc(location)}${service ? ' · Service ' + esc(service) : ''}${commodity ? ' · Hàng: ' + esc(commodity) : ''}${applicable ? '' : ' · Cần đối chiếu điều kiện áp dụng'}</small><div>${esc(quote)}</div></li>`,
   );
   const tariff = evidence.some(({ field, applicable }) => field === 'tariff' && applicable)
     ? '<p>Booking dẫn chiếu biểu phí hãng tàu. Cần tra biểu phí để xác nhận số ngày.</p>'
     : '';
-  const standardDet = new Set(
-    evidence
-      .filter(({ field, applicable }) => field === 'standardDet' && applicable)
-      .map(({ value }) => value),
-  );
-  const standardNote =
-    standardDet.size === 1
-      ? ` · DET tiêu chuẩn ${esc([...standardDet][0])} ngày, cần xác nhận theo hợp đồng`
-      : '';
-  return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET${standardNote}</summary>${tariff}<ul>${items.join('')}</ul></details>`;
+  const standard = standardDetTerm(evidence);
+  const standardNote = standard ? ` · DET tiêu chuẩn ${esc(standard.value)} ngày` : '';
+  const contract = standard
+    ? '<p>Nếu có thỏa thuận riêng cho lô hàng, áp dụng số ngày theo thỏa thuận đó.</p>'
+    : '';
+  return `<details class="field-wide free-time-evidence"><summary>Nguồn Free DEM / DET${standardNote}</summary>${contract}${tariff}<ul>${items.join('')}</ul></details>`;
 }
 
 function renderSupplementalFields() {
@@ -211,12 +294,17 @@ function renderSupplementalFields() {
     ];
     source = 'Packing List';
   } else if (state.active === 'packing') {
-    const { plContainer, plSeal } = billIdentifiersForPacking();
+    const { plContainer, plSeal, reason } = billIdentifiersForPacking();
     entries = [
-      ['plContainer', 'Container', plContainer],
-      ['plSeal', 'Seal', plSeal],
+      ['plContainer', 'Container', plContainer?.value, plContainer?.item],
+      ['plSeal', 'Seal', plSeal?.value, plSeal?.item],
     ];
-    source = 'B/L';
+    for (const [field] of entries) {
+      $('field-' + field).placeholder = reason ? 'Cần xác minh' : 'Chưa đọc được';
+    }
+    const note = $('packing-identifier-note');
+    note.textContent = reason && entries.some(([field]) => !value(field)) ? reason : '';
+    note.hidden = !note.textContent;
   } else if (state.active === 'booking') {
     const { bookingShipper, bookingConsignee } = billPartiesForBooking();
     entries = [
@@ -226,11 +314,13 @@ function renderSupplementalFields() {
     source = 'B/L';
   } else return;
 
-  for (const [field, caption, supplementalValue] of entries) {
+  for (const [field, caption, supplementalValue, item] of entries) {
     const input = $('field-' + field);
     input.value = state.manual.has(field) ? state.form[field] : supplementalValue || value(field);
-    input.title = input.value;
+    input.title = item ? input.value + ' · ' + item.name : input.value;
     const label = $('formPanel').querySelector(`label[for="field-${field}"]`);
-    label.textContent = supplementalValue ? caption + ' · ' + source : caption;
+    label.textContent = supplementalValue
+      ? caption + ' · ' + (item?.type === 'booking' ? 'Booking' : item ? 'B/L' : source)
+      : caption;
   }
 }

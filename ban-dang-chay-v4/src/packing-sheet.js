@@ -1,5 +1,6 @@
 import { norm, num, weightText } from './field-values.js';
 import { labeledValue } from './invoice-sheet.js';
+import { normalizedContainer, normalizedSeal } from './bill-of-lading.js';
 
 const grossHeading = /^(?:gross weight|trong luong ca bi)(?: kg| kgs| kgm)?$/;
 const netHeading = /^(?:net weight|trong luong tinh)(?: kg| kgs| kgm)?$/;
@@ -114,8 +115,8 @@ export function extractPackingSheet(rows) {
   };
   const container = labeledValue(rows, /^(?:container (?:no|number)|so container)$/);
   const seal = labeledValue(rows, /^(?:seal(?: no| number)?|so seal)$/);
-  if (/^[A-Z]{4}\d{7}$/i.test(container)) fields.plContainer = container;
-  if (/^[A-Z0-9][A-Z0-9./_-]+$/i.test(seal)) fields.plSeal = seal;
+  fields.plContainer = normalizedContainer(container);
+  fields.plSeal = normalizedSeal(seal);
   fields.plItems = packingItems(rows);
   if (headerIndex < 0) return fields;
 

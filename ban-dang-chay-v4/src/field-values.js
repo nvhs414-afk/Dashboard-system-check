@@ -35,6 +35,7 @@ export function norm(s) {
   return String(s ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();

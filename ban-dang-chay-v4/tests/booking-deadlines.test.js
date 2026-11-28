@@ -109,3 +109,26 @@ test('Booking extracts operational dates only from their corresponding labels', 
   assert.equal(values.bookingGateInActual, '2026/04/02 08:15');
   assert.equal(values.bookingAtd, '2026/04/04 10:00');
 });
+
+test('standard DET through load date uses ETD as an estimate even after gate-in', () => {
+  const evidence = bookingFreeTime(
+    'The additional detention charge applies after standard free time (7 calendar days including empty pick up date + Load date).',
+  );
+  const result = warnings(
+    {
+      ...lot,
+      pickupDate: '2026/04/01',
+      detFree: '7',
+      demFree: '',
+      etd: '2026/04/09',
+      bookingGateInActual: '2026/04/04',
+    },
+    '2026-04-07T00:00:00+07:00',
+    evidence,
+  );
+  assert.equal(result.det.deadline, '08/04/2026 00:00');
+  assert.equal(result.det.status, 'warning');
+  assert.equal(result.det.excess, 2);
+  assert.match(result.det.detail, /ngày xếp tàu.*ETD/);
+  assert.equal(result.dem.status, 'pending');
+});

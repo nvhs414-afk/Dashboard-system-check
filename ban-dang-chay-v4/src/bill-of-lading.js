@@ -1,5 +1,6 @@
 import { weightText } from './field-values.js';
 import { textBlocks, textRows } from './pdf-layout.js';
+import { shipmentReferences } from './shipment-references.js';
 
 const portLabels = {
   blPol: /^(?:port of loading|pol)$/i,
@@ -9,11 +10,57 @@ const otherLabel =
   /^(?:place of (?:receipt|delivery)|final destination|for transshipment|onward inland routing|pre-carriage|ocean vessel|container no\.?|description of|gross weight|measurement|shipper|consignee|notify party)\b/i;
 const headingText = (text) => text.replace(/[\s:*]+$/, '');
 
-export function extractContainerSeal(text) {
-  const container = /\b([A-Z]{3}[UJZ][ \t]*\d{7})[ \t]*\/[ \t]*([A-Z0-9][A-Z0-9.-]{2,})\b/i;
-  const match = text.match(container);
-  if (!match) return {};
-  return { blContainer: match[1].replace(/\s/g, '').toUpperCase(), blSeal: match[2] };
+const containerCode = String.raw`[A-Z]{3}[UJZ][ \t-]*\d{6}[ \t-]*\d`;
+const sealCode = String.raw`[A-Z0-9][A-Z0-9./_-]{2,39}`;
+const containerLabel = String.raw`(?:container[ \t]*(?:no\.?|number|#)|số[ \t]+container)`;
+const sealLabel = String.raw`(?:seal[ \t]*(?:(?:no\.?|number|#)[ \t]*)?|số[ \t]+seal)`;
+
+export function normalizedContainer(value = '') {
+  if (!new RegExp(`^${containerCode}$`, 'i').test(value.trim())) return '';
+  return value.replace(/[\s-]/g, '').toUpperCase();
+}
+
+export function normalizedSeal(value = '') {
+  const seal = value.trim();
+  return new RegExp(`^${sealCode}$`, 'i').test(seal) &&
+    /\d/.test(seal) &&
+    !normalizedContainer(seal)
+    ? seal
+    : '';
+}
+
+export function extractContainerSeal(text, prefix = 'bl') {
+  const containers = new Set();
+  const seals = new Map();
+  const label = (name, code) =>
+    new RegExp(
+      `(?:^|[|\\t]| {2,})(?:[ \\t]*)${name}[ \\t]*[:#]?[ \\t|]*(?:\\r?\\n[ \\t]*)?(${code})(?![A-Z0-9./_-])`,
+      'gim',
+    );
+  const registerSeal = (sealText) => {
+    const seal = normalizedSeal(sealText);
+    if (seal) seals.set(seal.toUpperCase(), seal);
+  };
+  for (const [, container] of text.matchAll(label(containerLabel, containerCode)))
+    containers.add(normalizedContainer(container));
+  for (const [, seal] of text.matchAll(label(sealLabel, sealCode))) registerSeal(seal);
+
+  // Waybill cargo tables print both identifiers on the same row, either separated by
+  // a slash or followed by the equipment size and type.
+  const pair = new RegExp(
+    `(?:^|[^A-Z0-9])(${containerCode})(?:[ \\t]*/[ \\t]*(${sealCode})(?=$|[ \\t])|[ \\t|]+(${sealCode})(?=[ \\t|]+(?:20|40|45)\\s*(?:['’]|[A-Z]))|` +
+      `[ \\t]+${sealLabel}[ \\t]*[:#]?[ \\t]*(${sealCode})(?=$|[ \\t]))`,
+    'gim',
+  );
+  for (const [, container, slashSeal, tableSeal, labeledSeal] of text.matchAll(pair)) {
+    containers.add(normalizedContainer(container));
+    registerSeal(slashSeal || tableSeal || labeledSeal);
+  }
+  if (containers.size > 1 || seals.size > 1) return { [prefix + 'IdentifierConflict']: true };
+  return {
+    ...(containers.size ? { [prefix + 'Container']: [...containers][0] } : {}),
+    ...(seals.size ? { [prefix + 'Seal']: [...seals.values()][0] } : {}),
+  };
 }
 
 function boxValue(rows, index, column, inset = 8) {
@@ -63,6 +110,31 @@ function bookingReference(rows) {
     }
   }
   return '';
+}
+
+function splitBillReference(rows) {
+  const label = /^B\s*\/?\s*L\s+(?:No\.?|Number)\s*:?\s*([A-Z]{4})?$/i;
+  for (const [index, row] of rows.entries()) {
+    for (const [column, block] of row.blocks.entries()) {
+      const match = block.text.match(label);
+      if (!match) continue;
+      const prefix = match[1] || row.blocks[column + 1]?.text;
+      if (!/^[A-Z]{4}$/i.test(prefix || '')) continue;
+      for (let line = index + 1; line < rows.length && row.y - rows[line].y <= 18; line++) {
+        const number = rows[line].blocks.find(
+          ({ x, text }) =>
+            Math.abs(x - block.x) <= 24 && /^[A-Z0-9-]{5,30}$/i.test(text) && /\d/.test(text),
+        );
+        if (number) {
+          return {
+            blBillNo: (prefix + number.text).toUpperCase(),
+            blBillNoAlias: number.text.toUpperCase(),
+          };
+        }
+      }
+    }
+  }
+  return {};
 }
 
 function grossWeight(rows, index, column) {
@@ -166,6 +238,9 @@ export function extractBillOfLadingFields(items) {
   if (weight) fields.blGross = weight;
   const reference = bookingReference(rows);
   if (reference) fields.blBookingNo = reference;
-  const lines = rows.map((row) => row.blocks.map(({ text }) => text).join(' ')).join('\n');
-  return { ...fields, ...extractContainerSeal(lines) };
+  const lines = rows.map((row) => row.blocks.map(({ text }) => text).join('  ')).join('\n');
+  const references = Object.fromEntries(
+    Object.entries(shipmentReferences(lines, 'bl')).filter(([, value]) => value),
+  );
+  return { ...fields, ...references, ...splitBillReference(rows), ...extractContainerSeal(lines) };
 }

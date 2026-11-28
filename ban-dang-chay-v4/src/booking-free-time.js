@@ -1,4 +1,9 @@
 import { norm } from './field-values.js';
+import {
+  bookingService,
+  serviceCondition,
+  serviceFreeTimeRows,
+} from './booking-service-free-time.js';
 
 export const freeTimeFields = {
   demFree: 'Free DEM',
@@ -9,14 +14,15 @@ export const freeTimeFields = {
 const fee = String.raw`(?:DEM(?:URRAGE)?|DET(?:ENTION)?)`;
 const days = String.raw`(?:(?:calendar|working|business)\s+)?(?:free\s+)?days?`;
 const pair = String.raw`(?:DEM(?:URRAGE)?\s*(?:[+/&]|and)\s*DET(?:ENTION)?|DET(?:ENTION)?\s*(?:[+/&]|and)\s*DEM(?:URRAGE)?)`;
-const combined = String.raw`(?:combined\b|D\s*&\s*D\b|${pair}\b)`;
+const combined = String.raw`(?:combined\b(?:\s+(?:${pair}|demurrage\s+detention)\b)?|D\s*&\s*D\b|${pair}\b)`;
+const combinedLabel = new RegExp(String.raw`\b${combined}`, 'i');
 const prefix = new RegExp(
   String.raw`\b(free\s+)?(${fee})\b\s*(?:free\s*(?:time\s*)?|time\s*)?(?:[:：=–-]\s*)?(\d{1,2})\b(?:\s*(${days}))?`,
   'gi',
 );
 const suffix = new RegExp(String.raw`\b(\d{1,2})\s*(${days})?\s*(free\s+)?(${fee})\b`, 'gi');
 const combinedAfter = new RegExp(
-  String.raw`${combined}(?:\s*(?:D\s*&\s*D|\(?\s*free\s*time\s*\)?|combined|days?))*\s*[:：=–-]?\s*(\d{1,2})\b(?:\s*(${days}))?`,
+  String.raw`${combined}(?:\s*(?:D\s*&\s*D|\(?\s*(?:standard\s+)?free\s*time\s*\)?|combined|days?))*\s*[:：=–-]?\s*(\d{1,2})\b(?:\s*(${days}))?`,
   'i',
 );
 const combinedBefore = new RegExp(String.raw`\b(\d{1,2})\s+${days}\s+${combined}`, 'i');
@@ -93,10 +99,19 @@ function ruleApplies(clause, { commodity, scope, conflicting }) {
 
 export function bookingFreeTime(text) {
   const cargo = cargoProfile(text);
+  const service = bookingService(text);
   const evidence = [];
   const pages = text.split(/^\s*\[Trang (\d+)\][ \t]*$/m);
   for (let i = 0; i < pages.length; i += 2) {
     const page = i ? Number(pages[i - 1]) : null;
+    evidence.push(
+      ...serviceFreeTimeRows(pages[i], service).map((entry) => ({
+        ...entry,
+        page,
+        commodity: cargo.commodity,
+        applicable: entry.applicable && !cargo.conflicting,
+      })),
+    );
     const clauses = pages[i]
       .replace(/\r?\n[ \t]*(?=(?:[+&]|\d{1,2}\s*(?:DEM|DET|days?\b)|for\b|including\b))/gi, ' ')
       .replace(/([^\s:：])[^\S\r\n]+(?=Free\s+\d{1,2}\s*(?:DEM|DET)\b)/gi, '$1\n')
@@ -104,7 +119,10 @@ export function bookingFreeTime(text) {
     for (const part of clauses) {
       const quote = part.replace(/\s+/g, ' ').trim();
       if (!quote) continue;
-      const applicable = ruleApplies(quote, cargo);
+      const serviceRule = quote.match(serviceCondition);
+      const applicable =
+        (!serviceRule || serviceRule[1].toUpperCase() === service) &&
+        ruleApplies(serviceRule ? quote.replace(serviceRule[0], '') : quote, cargo);
       const add = (field, value) =>
         evidence.push({
           field,
@@ -112,6 +130,7 @@ export function bookingFreeTime(text) {
           quote,
           page,
           commodity: cargo.commodity,
+          ...(serviceRule ? { service: serviceRule[1].toUpperCase() } : {}),
           applicable,
         });
       if (
@@ -122,13 +141,23 @@ export function bookingFreeTime(text) {
       ) {
         add('tariff', '');
       }
-      const standardDet = quote.match(
-        /\bdetention\b.*\bstandard\s+free\s+time\s*\(?\s*(\d{1,2})\s+calendar\s+days?\b/i,
-      );
-      if (standardDet) {
+      const standardDet =
+        quote.match(
+          /\b(?:DET|detention)\b.*\bstandard\s+free\s+time\s*[:：]?\s*\(?\s*(\d{1,3})\s+(?:(?:calendar|working|business)\s+)?days?\b/i,
+        ) ||
+        quote.match(
+          /\bstandard\s+(?:DET|detention)\s+free\s+time\s*[:：]?\s*\(?\s*(\d{1,3})\s+(?:(?:calendar|working|business)\s+)?days?\b/i,
+        );
+      if (standardDet && !combinedLabel.test(quote)) {
         add('standardDet', standardDet[1]);
         continue;
       }
+      if (
+        /\b(?:DET|detention)\s*(?:free\s+time\s*)?[:：]?\s*(?:(?:as\s+per|per|subject\s+to)\s+)?(?:the\s+)?(?:agreed\s+)?(?:contract|service\s+agreement)\b/i.test(
+          quote,
+        )
+      )
+        add('detContract', '');
       // Rates or paired figures without individual labels cannot be split into free days.
       if (/\b(?:USD|VND|EUR|CFS|storage|plug[- ]?in)\b/i.test(quote)) continue;
       if (/\b\d{1,2}\s*[+/]\s*\d{1,2}\b/.test(quote)) {
@@ -162,6 +191,19 @@ export function bookingFreeTime(text) {
   );
 }
 
+export function standardDetTerm(evidence) {
+  const applicable = evidence.filter((entry) => entry.applicable);
+  if (
+    applicable.some(({ field }) =>
+      ['detFree', 'freeDays', 'detContract', 'unclear'].includes(field),
+    )
+  )
+    return;
+  const defaults = applicable.filter(({ field }) => field === 'standardDet');
+  const distinct = new Set(defaults.map(({ value }) => Number(value)));
+  if (distinct.size === 1) return defaults[0];
+}
+
 export function resolveFreeTime(evidence) {
   const fields = {};
   for (const field of Object.keys(freeTimeFields)) {
@@ -172,5 +214,7 @@ export function resolveFreeTime(evidence) {
     );
     if (values.size === 1) fields[field] = String([...values][0]);
   }
+  const standard = standardDetTerm(evidence);
+  if (standard) fields.detFree = String(Number(standard.value));
   return fields;
 }
