@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Archivo:wght@400;500;600&amp;family=Inter:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap">
-  <link rel="stylesheet" href="./styles.css?v=combined-free-time-1">
+  <link rel="stylesheet" href="./styles.css?v=certificate-draft-1">
   <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
-  <script type="module" src="./app.js?v=combined-free-time-1"></script>
+  <script type="module" src="./app.js?v=certificate-draft-1"></script>
 </head>
 <body>
   <header class="topbar">
@@ -48,8 +48,7 @@
           </section>
         </div>
 
-        <aside class="workspace-sidebar" aria-label="Tóm tắt và bản nháp">
-          <section class="result-sidebar" aria-labelledby="results-summary-title">
+        <aside class="workspace-sidebar result-sidebar" aria-labelledby="results-summary-title">
             <h3 id="results-summary-title">Tóm tắt rủi ro</h3>
             <div id="priority-checks" class="checks-list"></div>
             <p class="sidebar-intro">Các điểm cần xử lý hiển thị theo mức độ ảnh hưởng.</p>
@@ -57,10 +56,9 @@
             <div id="resultEmpty" class="result-empty" data-icon="clipboard">Chưa có kết quả kiểm tra.</div>
             <div id="resultContent" hidden><div class="result-summary"><h4>Tổng hợp</h4><p id="checkSummary"></p></div><div id="checksList" class="checks-list"></div><button id="toggleChecksBtn" type="button" class="button view-all" hidden>Xem tất cả kiểm tra</button>
               <div class="panel radar"><div class="panel-title"><div><p class="eyebrow">BOOKING &amp; SCHEDULE RADAR</p><h3>Lịch vận hành</h3></div><span id="radarOrigin" class="origin-tag">Dữ liệu từ hồ sơ</span></div><div id="radarContent"></div></div></div>
-          </section>
-          <section id="co-draft" class="panel draft" aria-labelledby="co-draft-title">
+        </aside>
+        <aside id="co-draft" class="workspace-sidebar panel draft" aria-labelledby="co-draft-title">
             <div class="panel-title"><div><h3 id="co-draft-title">Bản nháp C/O</h3></div><span class="badge amber">Chưa phải C/O chính thức</span></div><div id="draftFields" class="draft-fields"></div><div class="draft-actions"><button id="downloadBtn" type="button" class="button primary" data-icon="download" disabled>Tải JSON</button><button id="printBtn" type="button" class="button outline" data-icon="printer" disabled>In bản nháp</button></div>
-          </section>
         </aside>
       </div>
     </section>

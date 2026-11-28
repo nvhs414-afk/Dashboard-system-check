@@ -76,16 +76,16 @@ export function renderDraft() {
       ['Người xuất khẩu', d?.nguoiXuatKhau],
       ['Người nhập khẩu', d?.nguoiNhapKhau],
       ['Tên hàng', d?.tenHang],
-      ['Mã HS', d?.maHS],
+      ['Mã HS', d?.maHS, d?.nguonTruong?.maHS],
       ['Số lượng', d?.soLuong],
       ['Gross Weight', d?.grossWeightKg ? d.grossWeightKg + ' kg' : ''],
-      ['Tiêu chí xuất xứ', d?.tieuChiXuatXu],
+      ['Tiêu chí xuất xứ', d?.tieuChiXuatXu, d?.nguonTruong?.tieuChiXuatXu],
     ];
   const missing = d ? 'Chưa xác định' : '—';
   $('draftFields').innerHTML = items
     .map(
-      ([k, v]) =>
-        `<div class="draft-field"><span>${esc(k)}</span><b>${esc(v || missing)}</b></div>`,
+      ([k, v, source]) =>
+        `<div class="draft-field"><span>${esc(k)}</span><b>${esc(source?.conflict ? 'Cần xác minh' : v || missing)}</b>${source ? `<small>Nguồn: ${esc(source.files.join(', '))}</small>` : ''}</div>`,
     )
     .join('');
   $('downloadBtn').disabled = !d;

@@ -6,6 +6,36 @@ import { recognizeDocument } from '../src/document-recognition.js';
 import { pdfDocuments } from '../src/pdf-documents.js';
 import { bookingIssueDate, selectBookingSources } from '../src/booking-revisions.js';
 
+test('the C/O draft sources HS codes and origin criteria only from related documents', () => {
+  const item = (type, name, raw, fields) => ({ type, name, raw, fields, status: 'Đã nhận diện' });
+  const invoice = item('invoice', 'invoice.xlsx', 'PO: PO-400\nCountry of Origin: Vietnam', {
+    invoiceNo: 'INV-123',
+  });
+  const bill = item('bl', 'waybill.pdf', 'HS CODE : 9403.60/9401.61', {
+    blBillNo: 'BILL400',
+    blPurchaseOrder: 'PO-400',
+  });
+  const other = item('bl', 'other.pdf', 'HS CODE: 123456\nOrigin criterion: WO', {
+    blBillNo: 'BILL500',
+    blPurchaseOrder: 'PO-500',
+  });
+  const value = (key) => (key === 'invoiceNo' ? 'INV-123' : '');
+  const draft = evaluateShipment([invoice, bill, other], value).draft;
+  assert.equal(draft.maHS, '9403.60 / 9401.61');
+  assert.deepEqual(draft.nguonTruong.maHS.files, ['waybill.pdf']);
+  assert.equal(draft.tieuChiXuatXu, '');
+
+  invoice.raw += '\nOrigin criterion: CTH';
+  const withOrigin = evaluateShipment([invoice, bill, other], value).draft;
+  assert.equal(withOrigin.tieuChiXuatXu, 'CTH');
+  assert.deepEqual(withOrigin.nguonTruong.tieuChiXuatXu.files, ['invoice.xlsx']);
+
+  invoice.raw += '\nHS CODE: 123456';
+  const conflict = evaluateShipment([invoice, bill, other], value).draft;
+  assert.equal(conflict.maHS, '');
+  assert.equal(conflict.nguonTruong.maHS.conflict, true);
+});
+
 test('document headings take precedence over filenames and secondary references', () => {
   assert.equal(sourceType('invoice.pdf', 'Packing List\nInvoice No: X123\nQuantity'), 'packing');
   assert.equal(

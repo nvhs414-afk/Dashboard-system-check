@@ -2,6 +2,7 @@ import { groups, required, types } from './document-fields.js';
 import { eq, norm } from './field-values.js';
 import { makeRadar } from './booking-radar.js';
 import { samePort } from './booking-notice.js';
+import { certificateDraftFields } from './certificate-draft.js';
 
 export function evaluateShipment(queue, value, { packingGross = '', packingUnit = '' } = {}) {
   let checks = [];
@@ -102,18 +103,7 @@ export function evaluateShipment(queue, value, { packingGross = '', packingUnit 
   const draft = {
     nhan: 'Chưa phải C/O chính thức',
     nguon: 'Dữ liệu từ hồ sơ đã đọc hoặc nhân viên nhập trong phiên',
-    hoaDon: value('invoiceNo'),
-    ngayHoaDon: value('invoiceDate'),
-    nguoiXuatKhau: value('exporter'),
-    nguoiNhapKhau: value('importer'),
-    tenHang: value('description'),
-    maHS: value('hs'),
-    soLuong: [value('invoiceQty'), packingUnit || value('invoiceUnit')].filter(Boolean).join(' '),
-    netWeightKg: value('invoiceNet'),
-    grossWeightKg: value('invoiceGross') || packingGross,
-    triGiaUSD: value('invoiceValue'),
-    booking: value('bookingNo'),
-    tieuChiXuatXu: 'Chưa xác định',
+    ...certificateDraftFields(queue, value, { packingGross, packingUnit }),
     diemRuiRo: score,
     mucRuiRo: level,
     kiemTra: checks,
