@@ -16,11 +16,11 @@
 body{font:15px/1.6 "Open Sans",system-ui,Arial,sans-serif;letter-spacing:-.005em;background:#fff}
 .eyebrow{font-size:11.5px;letter-spacing:.18em;font-weight:500;color:var(--blue)}
 .dark .eyebrow{color:#7fb6e6}
-.topbar{height:68px;background:var(--orange2);color:var(--navy);border-bottom:0}
+.topbar{height:var(--topbar-height);background:var(--orange2);color:var(--navy);border-bottom:0}
 
 
 .topbar nav{gap:34px}
-.topbar nav a{color:var(--navy);font-size:14px;position:relative}
+.topbar nav a{color:var(--navy);font-size:17px;font-weight:700;position:relative}
 .topbar nav a:hover,.topbar nav a:focus-visible{color:var(--navy)}
 .overview{background:#fff;background-image:linear-gradient(#eef2f6 1px,transparent 1px),linear-gradient(90deg,#eef2f6 1px,transparent 1px);background-size:64px 64px;background-position:center top;position:relative}
 .overview::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,#fff 100%);pointer-events:none}
@@ -265,10 +265,6 @@ html,body{overflow-x:clip}
   transform: none;
 }
 
-@media (max-width: 620px) {
-  .topbar nav { gap: clamp(10px, 4vw, 18px); }
-}
-
 @media print {
   .reveal { opacity: 1; transform: none; }
 }
@@ -291,9 +287,31 @@ html,body{overflow-x:clip}
   letter-spacing: .01em;
 }
 .overview h1 span { font-weight: inherit; }
-.brand-logo { display: block; width: auto; height: 48px; }
-@media (max-width: 620px) {
-  .brand-logo { height: 38px; }
+:root { --topbar-height: 88px; }
+html { scroll-padding-top: calc(var(--topbar-height) + 14px); }
+.brand-logo { display: block; width: auto; height: 66px; }
+@media (max-width: 1020px) {
+  .brand-logo { height: 60px; }
+  .topbar nav { gap: 16px; }
+  .topbar nav a { font-size: 16px; }
+}
+@media (max-width: 800px) {
+  :root { --topbar-height: 108px; }
+  .bar-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 8px;
+    padding-block: 9px;
+  }
+  .brand-logo { height: 48px; }
+  .topbar nav { flex-wrap: wrap; margin: 0; gap: 5px 16px; overflow: visible; }
+  .topbar nav a { font-size: 15px; }
+  .topbar nav a::after { bottom: -2px; }
+}
+@media (max-width: 520px) {
+  :root { --topbar-height: 129px; }
 }
 
 .field-wide {
@@ -353,7 +371,7 @@ html,body{overflow-x:clip}
 .booking-warnings summary { cursor: pointer; }
 .booking-warnings details .booking-warning-grid { margin-top: 8px; }
 #input {
-  --sidebar-top: 84px;
+  --sidebar-top: calc(var(--topbar-height) + 14px);
   --sidebar-gap: 12px;
   --sidebar-width: clamp(230px, 18.5vw, 350px);
   --workspace-width: min(1924px, calc(100% - 24px));
@@ -373,7 +391,7 @@ html,body{overflow-x:clip}
 .workspace-sidebar {
   position: sticky;
   top: var(--sidebar-top);
-  scroll-margin-top: var(--sidebar-top);
+  scroll-margin-top: 0;
   height: calc(100dvh - var(--sidebar-top) - var(--sidebar-gap));
   max-height: none;
   min-width: 0;
