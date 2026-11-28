@@ -16,13 +16,12 @@
 body{font:15px/1.6 "Open Sans",system-ui,Arial,sans-serif;letter-spacing:-.005em;background:#fff}
 .eyebrow{font-size:11.5px;letter-spacing:.18em;font-weight:500;color:var(--blue)}
 .dark .eyebrow{color:#7fb6e6}
-.topbar{height:68px;background:rgba(11,31,51,.96);backdrop-filter:blur(8px);border-bottom:0;box-shadow:inset 0 -3px 0 0 transparent;background-image:linear-gradient(90deg,var(--rust) 0 64px,#0a5fa8 64px 128px,#138a72 128px 192px,transparent 192px);background-size:100% 3px;background-repeat:no-repeat;background-position:bottom}
+.topbar{height:68px;background:var(--orange2);color:var(--navy);border-bottom:0}
 
 
 .topbar nav{gap:34px}
-.topbar nav a{color:#c9d6e3;font-size:14px;position:relative}
-.topbar nav a:hover,.topbar nav a:focus-visible{color:#fff}
-.topbar nav a:hover::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--rust)}
+.topbar nav a{color:var(--navy);font-size:14px;position:relative}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--navy)}
 .overview{background:#fff;background-image:linear-gradient(#eef2f6 1px,transparent 1px),linear-gradient(90deg,#eef2f6 1px,transparent 1px);background-size:64px 64px;background-position:center top;position:relative}
 .overview::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,#fff 100%);pointer-events:none}
 .overview>.wrap{position:relative}
@@ -102,9 +101,7 @@ h1 span{color:var(--orange);font-weight:400}
 .stat:hover{background:#fbf7f4}.stat:hover::after{transform:scaleX(1)}
 .stat b{color:var(--navy)}
 .flow-step>span,.card-kicker svg{color:var(--orange)}
-.topbar{background-image:linear-gradient(90deg,var(--orange) 0 96px,#fff 96px 100px,var(--orange2) 100px 140px,transparent 140px)}
-.topbar nav a:hover::after{background:var(--orange2)}
-.topbar nav a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--orange2);transform:scaleX(0);transition:transform .3s var(--ease)}
+.topbar nav a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--navy);transform:scaleX(0);transition:transform .3s var(--ease)}
 .topbar nav a:hover::after,.topbar nav a:focus-visible::after{transform:scaleX(1)}
 .button.primary{background:var(--navy);position:relative;overflow:hidden}
 .button.primary:hover{background:var(--orange)}
